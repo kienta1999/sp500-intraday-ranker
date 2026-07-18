@@ -68,8 +68,11 @@ def main() -> int:
             ("Backtest", py + ["scripts/backtest.py"]),
             ("Evaluate gates + validation.html", py + ["scripts/evaluate.py"]),
         ]
+    # Picks run last and are non-fatal: before the first training there's no
+    # model yet, and a scoring hiccup must not make the data refresh look broken.
+    steps.append(("Today's picks", py + ["scripts/today.py"]))
 
-    non_fatal = {"Evaluate gates + validation.html"}
+    non_fatal = {"Evaluate gates + validation.html", "Today's picks"}
 
     print(f"\nrun_all.py — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{len(steps)} step(s) planned:")

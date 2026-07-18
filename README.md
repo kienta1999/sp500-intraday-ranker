@@ -65,10 +65,15 @@ Add `--dry-run` first if you want to see the plan without executing.
 ### Everyday commands
 
 ```bash
-uv run python scripts/run_all.py            # data refresh only: topup → features → labels → lookahead check
-uv run python scripts/run_all.py --retrain  # ⭐ the above + train → backtest → evaluate (the full round)
+uv run python scripts/run_all.py            # 👈 DAILY go-to: topup → features → labels → check → today's top-10 picks (no retrain)
+uv run python scripts/run_all.py --retrain  # ⭐ the above + train → backtest → evaluate (run weekly-ish / after code changes)
 uv run python scripts/run_all.py --dry-run  # print what would run, execute nothing
+uv run python scripts/today.py              # just re-print today's picks (uses the latest trained model)
 ```
+
+The plain (no-flag) run scores today's stocks with the **most recent trained
+model** — fast, no retraining. Picks land in `picks/picks_<date>.csv` and are
+paper-tracking only until the gates above pass.
 
 ### One-time setup (already done, kept for reference)
 
