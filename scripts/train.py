@@ -298,8 +298,10 @@ def main() -> None:
     with open(PARAMS_PATH, "w") as f:
         json.dump(info, f, indent=2)
 
+    # Sibling-format importance CSV: feature,importance (mean gain over windows).
     imp = pd.DataFrame([i["importance"] for i in info]).mean().sort_values(ascending=False)
-    imp.rename("gain").to_csv(os.path.join(REPORTS_DIR, "feature_importance.csv"))
+    fi_df = imp.rename_axis("feature").reset_index(name="importance")
+    fi_df.to_csv(os.path.join(REPORTS_DIR, "feature_importance.csv"), index=False)
 
     pooled_ic = daily_ic(oos["date"], oos["y_true_excess"], oos["y_pred"].to_numpy())
     print(
@@ -309,8 +311,9 @@ def main() -> None:
         flush=True,
     )
     print(f"Wrote {OOS_PATH}, {PARAMS_PATH}, feature_importance.csv", flush=True)
-    print("\nTop 10 features by mean gain:")
-    print(imp.head(10).to_string())
+    print("\nFeature importance (mean gain across windows, top 20):")
+    for i, row in enumerate(fi_df.head(20).itertuples(), 1):
+        print(f"  {i:>2}. {row.feature:<28} {row.importance:.4f}")
 
 
 if __name__ == "__main__":

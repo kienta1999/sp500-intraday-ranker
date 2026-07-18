@@ -297,7 +297,7 @@ def write_html(metrics: dict, imgs: dict[str, str | None], importance: pd.Series
     imp_html = ""
     if importance is not None:
         imp_html = "<h2>Feature importance (mean gain, top 15)</h2>" + \
-            importance.head(15).to_frame("gain").to_html()
+            importance.head(15).to_frame("importance").to_html()
 
     html = f"""<!doctype html><html><head><meta charset='utf-8'>
 <title>sp500-intraday-ranker — validation</title>
@@ -421,7 +421,8 @@ def main() -> None:
     }
     imp_path = os.path.join(REPORTS_DIR, "feature_importance.csv")
     importance = (
-        pd.read_csv(imp_path, index_col=0)["gain"] if os.path.exists(imp_path) else None
+        pd.read_csv(imp_path).set_index("feature")["importance"]
+        if os.path.exists(imp_path) else None
     )
     html_path = write_html(metrics, imgs, importance)
 

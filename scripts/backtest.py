@@ -202,7 +202,45 @@ def compute_stats(nav: pd.Series) -> dict:
         "ann_vol": round(float(vol), 4),
         "sharpe": round(float(sharpe), 3),
         "max_drawdown": round(float(dd), 4),
+        "final_nav": round(float(nav.iloc[-1] / nav.iloc[0]), 3),
     }
+
+
+_LABELS = {
+    "model_next_open": "model top-10 (next-open fills)",
+    "model_same_day_1535": "model top-10 (same-day 15:35 fills)",
+    "momentum_12_1": "12-1 momentum top-10 baseline",
+    "random_10": "random-10 baseline (20-seed mean)",
+    "spy": "SPY buy-and-hold",
+}
+
+
+def _print_stats(label: str, stats: dict, extra: str = "") -> None:
+    """Sibling-style one-liner: aligned label + CAGR/Vol/Sharpe/MaxDD/FinalNAV."""
+    vs = f"  CAGRvsSPY={stats['cagr_vs_spy']:+.2%}" if "cagr_vs_spy" in stats else ""
+    print(
+        f"  {label:<36}  CAGR={stats['cagr']:+.2%}  "
+        f"Vol={stats['ann_vol']:.2%}  "
+        f"Sharpe={stats['sharpe']:+.2f}  "
+        f"MaxDD={stats['max_drawdown']:+.2%}  "
+        f"FinalNAV={stats['final_nav']:.3f}{vs}{extra}"
+    )
+
+
+def print_summary(stats: dict, calendar: pd.DatetimeIndex) -> None:
+    print(
+        f"\nBacktest summary (OOS {calendar[0].date()} → {calendar[-1].date()}, "
+        f"top-{TOP_N} every {REBALANCE_DAYS} sessions, net of costs):"
+    )
+    for key in ("model_next_open", "model_same_day_1535", "momentum_12_1",
+                "random_10", "spy"):
+        if key not in stats:
+            continue
+        extra = ""
+        band = stats[key].get("offset_band_total_return")
+        if band:
+            extra = f"  offsetTotRet[10/50/90]={band[0]:+.0%}/{band[1]:+.0%}/{band[2]:+.0%}"
+        _print_stats(_LABELS.get(key, key), stats[key], extra)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -319,10 +357,15 @@ def run_backtest(
     equity["spy"] = spy / spy.iloc[0] * capital
     stats["spy"] = compute_stats(equity["spy"])
 
+    # Excess CAGR vs SPY — the number that matters for gate 2.
+    spy_cagr = stats["spy"]["cagr"]
+    for key, st in stats.items():
+        if key != "spy":
+            st["cagr_vs_spy"] = round(st["cagr"] - spy_cagr, 4)
+
     eq = pd.DataFrame(equity)
     if not quiet:
-        for name, st in stats.items():
-            print(f"  {name:<22} {st}", flush=True)
+        print_summary(stats, calendar)
     return eq, stats
 
 
