@@ -121,11 +121,16 @@ machine-readable copies in `reports/validation_metrics.json` and
 - **No-lookahead guard**: `dataset.py` recomputes sampled feature rows from
   raw bars truncated to the decision timestamp and asserts equality — run it
   after any feature change.
-- **Universe**: all current S&P 500 members, dollar-volume ranked, frozen in
-  `data/universe/universe.csv` (committed). Fixed present-day membership over
-  4 years of history carries survivorship bias — accepted deliberately to
-  avoid point-in-time intraday complexity; documented here so results are read
-  with that caveat.
+- **Universe — point-in-time, survivorship-bias controlled**: membership
+  history (fja05680/sp500 change events + Wikipedia snapshots, mirrored from
+  the sibling project) determines which stocks existed in the index on each
+  date. `universe.csv` (committed) lists every member during the backfill
+  window — including departed names (ATVI, TWTR, SIVB, PXD, ...), whose bars
+  Alpaca serves up to their exact delisting dates — and
+  `features.py` applies `filter_to_members` so no (ticker, date) row exists
+  unless the stock was in the index that day. Residual caveat: rows in the
+  final 5 sessions before a delisting lose their forward label (no future
+  close), so the very last days of collapses are under-represented.
 - **Bars**: SIP feed, split-adjusted (not dividend-adjusted), regular trading
   hours only (bar starts 09:30–15:55 ET), stored tz-aware UTC per ticker under
   `data/raw/`.

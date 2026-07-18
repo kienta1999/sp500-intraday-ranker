@@ -57,6 +57,7 @@ def main() -> int:
 
     py = [_UV, "run", "python"]
     steps: list[tuple[str, list[str]]] = [
+        ("Refresh point-in-time universe", py + ["scripts/universe.py"]),
         ("Incremental data top-up (Alpaca)", py + ["scripts/data.py", "--topup"]),
         ("Rebuild features", py + ["scripts/features.py"]),
         ("Rebuild labeled panel", py + ["scripts/labels.py"]),

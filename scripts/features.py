@@ -46,7 +46,7 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 from data import NY_TZ, cached_tickers, load_bars  # noqa: E402
-from universe import load_universe  # noqa: E402
+from universe import filter_to_members, load_universe  # noqa: E402
 
 _ROOT = os.path.dirname(_HERE)
 FEATURES_DIR = os.path.join(_ROOT, "data", "processed", "features")
@@ -387,6 +387,9 @@ def build(tickers: list[str]) -> pd.DataFrame:
         raise SystemExit("No tickers produced features — run data.py first.")
 
     sampled = pd.concat(sampled_parts, ignore_index=True)
+    # Point-in-time membership BEFORE ranks: a stock that wasn't in the index
+    # on a date must neither appear as a row nor distort anyone's percentile.
+    sampled = filter_to_members(sampled)
     sampled = add_cross_sectional_ranks(sampled)
     sampled = sampled.sort_values(["date", "ticker"]).reset_index(drop=True)
 
