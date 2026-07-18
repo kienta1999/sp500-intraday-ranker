@@ -41,11 +41,12 @@ uv sync
 
 Data comes from Alpaca's free tier (full-market SIP historical bars; no funding
 needed). Create a free account at https://alpaca.markets, generate an API key
-pair, and export:
+pair (paper is fine), and put it in a `.env` at the repo root (gitignored;
+picked up automatically) — or export the same names in your shell:
 
-```bash
-export ALPACA_API_KEY="..."
-export ALPACA_SECRET_KEY="..."
+```
+ALPACA_API_KEY=...
+ALPACA_SECRET_KEY=...
 ```
 
 ## Pipeline

@@ -51,8 +51,27 @@ _COLUMN_MAP = {
 }
 
 
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ENV_PATH = os.path.join(_ROOT, ".env")
+
+
+def _load_dotenv() -> None:
+    """Populate os.environ from the repo-root .env (gitignored) for any key
+    not already exported — keeps cron runs independent of shell profiles."""
+    if not os.path.exists(_ENV_PATH):
+        return
+    with open(_ENV_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip().strip("'\""))
+
+
 def get_client() -> StockHistoricalDataClient:
     """Build the historical-data client, failing fast if keys are missing."""
+    _load_dotenv()
     key = os.environ.get("ALPACA_API_KEY")
     secret = os.environ.get("ALPACA_SECRET_KEY")
     if not key or not secret:
