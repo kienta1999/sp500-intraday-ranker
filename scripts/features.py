@@ -73,6 +73,18 @@ VOLATILITY_FEATURES = [
     "atr14b_pct",                  # ATR(14 bars, Wilder) as % of price
     "range_expansion",             # bar range / 20-bar mean range
 ]
+# Classic oscillators. RSI/MACD/z-score overlap the return/distance features
+# informationally, but the sibling project's 5-seed stability prune kept
+# macd_hist and zscore_20d/60d (while killing rsi_14/mfi_14 on DAILY bars) —
+# cheap to include here and let importance/ablation decide. Daily variants use
+# completed sessions only (shift(1)); MFI deliberately absent (dead in all 5
+# sibling seeds; volume_price_corr_26b covers the idea).
+OSCILLATOR_FEATURES = [
+    "rsi_14b",                     # Wilder RSI over 14 bars (~70 min)
+    "rsi_14d",                     # Wilder RSI over 14 completed daily closes
+    "macd_hist",                   # (MACD 12/26 − signal 9) / price, daily closes
+    "zscore_20d",                  # (price − mean20d) / std20d of prior daily closes
+]
 VOLUME_FEATURES = [
     "rel_vol_tod",                 # bar volume / same time-of-day mean, prior 20 sessions
     "cum_vol_vs_20d",              # session cum volume / same-point-in-day mean, prior 20 sessions
@@ -86,21 +98,21 @@ TIME_FEATURES = [
 # Cross-sectional percentile ranks (added on the sampled slice, where the full
 # universe shares a timestamp). dollar_vol_rank is already a rank; time
 # features are calendar facts — neither gets re-ranked.
-RANKABLE = MOMENTUM_FEATURES + VOLATILITY_FEATURES + [
+RANKABLE = MOMENTUM_FEATURES + VOLATILITY_FEATURES + OSCILLATOR_FEATURES + [
     "rel_vol_tod", "cum_vol_vs_20d", "volume_price_corr_26b",
 ]
 RANK_FEATURES = [f"{c}_rank" for c in RANKABLE]
 
 ALL_FEATURES = (
-    MOMENTUM_FEATURES + VOLATILITY_FEATURES + VOLUME_FEATURES
-    + TIME_FEATURES + RANK_FEATURES
+    MOMENTUM_FEATURES + VOLATILITY_FEATURES + OSCILLATOR_FEATURES
+    + VOLUME_FEATURES + TIME_FEATURES + RANK_FEATURES
 )
 
 # Features recomputable from a single ticker's truncated raw bars — what the
 # lookahead test verifies. Excludes cross-sectional columns (need the full
 # universe, but are timestamp-aligned so not a leak vector).
 PER_TICKER_FEATURES = (
-    MOMENTUM_FEATURES + VOLATILITY_FEATURES
+    MOMENTUM_FEATURES + VOLATILITY_FEATURES + OSCILLATOR_FEATURES
     + ["rel_vol_tod", "cum_vol_vs_20d", "volume_price_corr_26b"]
     + TIME_FEATURES
 )
@@ -192,6 +204,26 @@ def compute_features(bars: pd.DataFrame) -> pd.DataFrame:
         lambda s: s.shift(1).rolling(20).mean()
     ).replace(0.0, np.nan)
     out["volume_price_corr_26b"] = vol.rolling(26).corr(px)
+
+    # ── Oscillators ──
+    def _wilder_rsi(s: pd.Series, period: int) -> pd.Series:
+        d = s.diff()
+        up = d.clip(lower=0).ewm(alpha=1 / period, adjust=False).mean()
+        dn = (-d.clip(upper=0)).ewm(alpha=1 / period, adjust=False).mean()
+        return 100 - 100 / (1 + up / dn.replace(0.0, np.nan))
+
+    out["rsi_14b"] = _wilder_rsi(px, 14)
+    out["rsi_14d"] = _map_daily(_wilder_rsi(daily_close, 14).shift(1))
+    ema12 = daily_close.ewm(span=12, adjust=False).mean()
+    ema26 = daily_close.ewm(span=26, adjust=False).mean()
+    macd = ema12 - ema26
+    signal = macd.ewm(span=9, adjust=False).mean()
+    out["macd_hist"] = _map_daily(((macd - signal) / daily_close).shift(1))
+    mean20 = daily_close.shift(1).rolling(20).mean()
+    std20 = daily_close.shift(1).rolling(20).std()
+    out["zscore_20d"] = (px.to_numpy() - _map_daily(mean20)) / _map_daily(
+        std20.replace(0.0, np.nan)
+    )
 
     # Auxiliary: 21d mean daily dollar volume through session t-1 (ranked
     # cross-sectionally later as dollar_vol_rank).
