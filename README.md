@@ -22,13 +22,13 @@ off-exchange prints; SIP is the full tape).
 The model ships to paper trading **only if** it passes these, evaluated on
 pooled walk-forward out-of-sample predictions:
 
-| # | Gate | Pass criterion |
-|---|------|----------------|
-| 1 | Rank IC | mean daily Spearman IC > 0.02 AND Newey-West(5) t-stat > 2 |
-| 2 | Portfolio | top-10 weekly-rebalance net return (next-open fills, $1/order + 3 bps/side) beats SPY buy-and-hold AND the 12-1 momentum top-10 baseline |
-| 3 | Permutation | real pooled IC > 95th percentile of 20 within-date label-permuted runs |
-| 4 | Ablations (informational) | ΔIC from dropping volume features / cross-sectional ranks |
-| 5 | Decay (informational) | IC of frozen predictions vs realized 1/3/5/10/21-day excess returns |
+| #   | Gate                      | Pass criterion                                                                                                                           |
+| --- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Rank IC                   | mean daily Spearman IC > 0.02 AND Newey-West(5) t-stat > 2                                                                               |
+| 2   | Portfolio                 | top-10 weekly-rebalance net return (next-open fills, $1/order + 3 bps/side) beats SPY buy-and-hold AND the 12-1 momentum top-10 baseline |
+| 3   | Permutation               | real pooled IC > 95th percentile of 20 within-date label-permuted runs                                                                   |
+| 4   | Ablations (informational) | ΔIC from dropping volume features / cross-sectional ranks                                                                                |
+| 5   | Decay (informational)     | IC of frozen predictions vs realized 1/3/5/10/21-day excess returns                                                                      |
 
 **Decision rule:** if the model can't beat the 12-1 momentum baseline after
 costs, improve features or accept the baseline — do **not** deploy the ML anyway.
@@ -85,3 +85,11 @@ curve, equity curves for both fill modes, turnover, cost sensitivity).
 - **Bars**: SIP feed, split-adjusted (not dividend-adjusted), regular trading
   hours only (bar starts 09:30–15:55 ET), stored tz-aware UTC per ticker under
   `data/raw/`.
+
+## Notes
+
+- IBKR account `U27177562` (pending open) — the phase-4 execution account.
+- Built in Claude Code session `155a9292-8ff6-4874-a88d-5f19d9308fa1`.
+
+New ibkr account U27177562 pending open
+This session claude --resume 155a9292-8ff6-4874-a88d-5f19d9308fa1
