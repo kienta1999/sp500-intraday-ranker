@@ -135,6 +135,34 @@ machine-readable copies in `reports/validation_metrics.json` and
   hours only (bar starts 09:30–15:55 ET), stored tz-aware UTC per ticker under
   `data/raw/`.
 
+## Results log
+
+**Round 2 — 2026-07-18** · 155 tickers (backfill in progress), point-in-time
+membership active, `--quick` train (no grid), OOS 2024-01 → 2026-07 (10 windows):
+
+| Gate | Result |
+|---|---|
+| 1 IC | **PASS** — mean 0.0269, NW t-stat 2.14 |
+| 2 Portfolio | **FAIL vs momentum** — model +42.5% CAGR net (Sharpe 1.23, MaxDD −33%) vs SPY +20.6% / 12-1 momentum +64.2% / random-10 +24.5% |
+| 3 Permutation | **PASS** — real IC 0.0269 vs shuffled p95 0.0037 |
+| 4 Ablations (ΔIC when dropped) | volume **−0.0145**, intraday **−0.0088**, ranks −0.0027, long **+0.0047** (long features hurt) |
+| 5 Decay | IC rises with horizon: 0.014 (1d) → 0.027 (5d) → 0.058 (21d) — signal is slow |
+
+Notable: random-10 collapsed from +62.6% CAGR (round 1, survivorship-biased
+53-ticker snapshot) to +24.5% ≈ SPY-ish — the bias controls are working.
+Volume and intraday features are now the top contributing groups; long-scale
+features slightly hurt at the 5d horizon despite dominating gain importance
+(the model over-trusts long momentum — matches the decay curve).
+
+**Round 1 — 2026-07-18** · 53 most-liquid tickers, no membership filter —
+numbers inflated by construction (random-10 "made" +62% CAGR); kept only as
+the plumbing-validation round.
+
+**Next**: round 3 on the full 611-name universe with the full grid, once the
+backfill completes. Candidate experiment: retrain without LONG_FEATURES
+(ablation says +0.005 IC) and consider the 10–21d horizon the decay curve
+keeps pointing at.
+
 ## Notes
 
 - IBKR account `U27177562` (pending open) — the phase-4 execution account.
