@@ -62,6 +62,10 @@ N_ESTIMATORS = 1500
 EARLY_STOPPING_ROUNDS = 100
 TOP_CONFIGS = 6  # configs carried from window 0 into later windows
 
+# --quick: skip the grid entirely, one sane fixed config per window (early
+# stopping still tunes n_estimators). For fast iteration rounds.
+QUICK_PARAMS = dict(max_depth=4, learning_rate=0.03, min_child_weight=5, subsample=0.9)
+
 GRID: list[dict] = [
     dict(max_depth=d, learning_rate=lr, min_child_weight=mcw, subsample=ss)
     for d, lr, mcw, ss in itertools.product(
@@ -257,6 +261,10 @@ def main() -> None:
         "--smoke", action="store_true",
         help="Tiny windows + 2-config grid — plumbing test, metrics meaningless.",
     )
+    ap.add_argument(
+        "--quick", action="store_true",
+        help="Real windows, fixed params, no grid search — fast iteration.",
+    )
     args = ap.parse_args()
 
     panel = load_panel()
@@ -269,7 +277,7 @@ def main() -> None:
         grid = GRID[:2]
     else:
         windows = walk_forward_windows(panel["date"])
-        grid = GRID
+        grid = [QUICK_PARAMS] if args.quick else GRID
 
     if not windows:
         raise SystemExit(
