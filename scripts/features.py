@@ -61,60 +61,83 @@ MIN_SESSIONS = 60  # skip tickers with less history than the deepest daily windo
 # Feature buckets
 # ─────────────────────────────────────────────────────────────────────────────
 
-MOMENTUM_FEATURES = [
-    "ret_1b", "ret_3b", "ret_12b", "ret_26b", "ret_78b",  # trailing bar returns
-    "ret_5d", "ret_21d",           # vs the close 5/21 completed sessions ago
-    "dist_vwap",                   # price / cumulative session VWAP − 1
+# Buckets are organized by TIMESCALE. Coverage is deliberately densest in the
+# 1–50 day band (0.5×–10× the 5-day label horizon — the scale the label lives
+# on), with intraday features for event/abnormal-day detection and a light
+# long-scale group for trend/regime context. evaluate.py ablates the intraday
+# and long groups so the first real run quantifies each group's contribution.
+
+INTRADAY_FEATURES = [
+    # minutes → 1 day, computed on 5-min bars
+    "ret_12b", "ret_26b", "ret_78b",   # 1h / ~2h / 1-day trailing returns
+    "rsi_14b",                         # Wilder RSI over 14 bars (~70 min)
+    "rvol_26b", "rvol_78b",            # std of 1-bar returns, annualized
+    "atr14b_pct",                      # ATR(14 bars, Wilder) as % of price
+    "range_expansion",                 # bar range / 20-bar mean range
+    "range_pos_78b",                   # position in trailing-78-bar high/low range
+    "dist_vwap",                       # price / cumulative session VWAP − 1
+    "rel_vol_tod",                     # bar volume / same time-of-day mean, prior 20 sessions
+    "cum_vol_vs_20d",                  # session cum volume vs same point-in-day, prior 20 sessions
+    "volume_price_corr_26b",           # corr(volume, close) over trailing 26 bars
+]
+HORIZON_FEATURES = [
+    # 1–50 days — the core band for a 5d label. Daily aggregates use prior
+    # COMPLETED sessions (shift(1)); "px" terms use the live bar price.
+    "ret_1d", "ret_3d", "ret_5d", "ret_10d", "ret_21d",  # vs close k sessions ago
+    "gap_1d",                          # today's session open / prior close − 1
+    "up_streak_d",                     # signed count of consecutive up/down days
     "dist_mean_20d", "dist_mean_50d",  # price / mean of prior 20/50 daily closes − 1
-    "range_pos_78b",               # position in the trailing-78-bar high/low range
+    "range_pos_20d",                   # position in prior-20-session high/low range
+    "rvol_5d", "rvol_10d",             # std of daily returns, annualized
+    "vol_5d_vs_20d",                   # mean daily volume 5d vs 20d
+    "rsi_14d",                         # Wilder RSI, 14 completed daily closes
+    "macd_hist",                       # (MACD 12/26 − signal 9) / price, daily
+    "zscore_20d",                      # (price − mean20d) / std20d of prior closes
+    "bb_width_20d",                    # Bollinger band width (squeeze detector)
+    "cmf_20d",                         # Chaikin Money Flow, 20 sessions
+    "obv_zscore_20d",                  # On-Balance Volume z-score vs its 20d history
+    "mfi_14d",                         # Money Flow Index, 14 sessions
+    "cci_20d",                         # Commodity Channel Index, 20 sessions
+    "aroon_25d",                       # Aroon oscillator, 25 sessions
 ]
-VOLATILITY_FEATURES = [
-    "rvol_26b", "rvol_78b",        # std of 1-bar returns, annualized
-    "atr14b_pct",                  # ATR(14 bars, Wilder) as % of price
-    "range_expansion",             # bar range / 20-bar mean range
-]
-# Classic oscillators. RSI/MACD/z-score overlap the return/distance features
-# informationally, but the sibling project's 5-seed stability prune kept
-# macd_hist and zscore_20d/60d (while killing rsi_14/mfi_14 on DAILY bars) —
-# cheap to include here and let importance/ablation decide. Daily variants use
-# completed sessions only (shift(1)); MFI deliberately absent (dead in all 5
-# sibling seeds; volume_price_corr_26b covers the idea).
-OSCILLATOR_FEATURES = [
-    "rsi_14b",                     # Wilder RSI over 14 bars (~70 min)
-    "rsi_14d",                     # Wilder RSI over 14 completed daily closes
-    "macd_hist",                   # (MACD 12/26 − signal 9) / price, daily closes
-    "zscore_20d",                  # (price − mean20d) / std20d of prior daily closes
-]
-VOLUME_FEATURES = [
-    "rel_vol_tod",                 # bar volume / same time-of-day mean, prior 20 sessions
-    "cum_vol_vs_20d",              # session cum volume / same-point-in-day mean, prior 20 sessions
-    "volume_price_corr_26b",       # corr(volume, close) over trailing 26 bars
-    "dollar_vol_rank",             # cross-sectional pct rank of 21d mean daily dollar volume
+LONG_FEATURES = [
+    # 63–252 days — light regime/trend context ("see after training").
+    "ret_63d", "ret_126d",             # quarterly / half-year momentum
+    "mom_12_1",                        # close[t-21]/close[t-252] − 1 (classic 12-1)
+    "dist_52w_high",                   # price / prior-252-session high − 1
+    "dist_mean_200d",                  # price / mean of prior 200 daily closes − 1
 ]
 TIME_FEATURES = [
     "bar_of_day", "day_of_week", "minutes_since_open", "minutes_to_close",
 ]
 
+# Ablation grouping (overlaps the timescale buckets): everything volume-driven.
+VOLUME_FEATURES = [
+    "rel_vol_tod", "cum_vol_vs_20d", "volume_price_corr_26b",
+    "vol_5d_vs_20d", "cmf_20d", "obv_zscore_20d", "mfi_14d", "dollar_vol_rank",
+]
+
 # Cross-sectional percentile ranks (added on the sampled slice, where the full
 # universe shares a timestamp). dollar_vol_rank is already a rank; time
 # features are calendar facts — neither gets re-ranked.
-RANKABLE = MOMENTUM_FEATURES + VOLATILITY_FEATURES + OSCILLATOR_FEATURES + [
-    "rel_vol_tod", "cum_vol_vs_20d", "volume_price_corr_26b",
-]
+RANKABLE = INTRADAY_FEATURES + HORIZON_FEATURES + LONG_FEATURES
 RANK_FEATURES = [f"{c}_rank" for c in RANKABLE]
 
 ALL_FEATURES = (
-    MOMENTUM_FEATURES + VOLATILITY_FEATURES + OSCILLATOR_FEATURES
-    + VOLUME_FEATURES + TIME_FEATURES + RANK_FEATURES
+    INTRADAY_FEATURES + HORIZON_FEATURES + LONG_FEATURES
+    + ["dollar_vol_rank"] + TIME_FEATURES + RANK_FEATURES
 )
+
+# Long features need 252 completed sessions of warmup — a recent listing would
+# lose its entire history to a NaN-dropna. XGBoost handles missing natively,
+# so these (and their ranks) are exempt from dataset.py's dropna gate.
+NULLABLE_FEATURES = LONG_FEATURES + [f"{c}_rank" for c in LONG_FEATURES]
 
 # Features recomputable from a single ticker's truncated raw bars — what the
 # lookahead test verifies. Excludes cross-sectional columns (need the full
 # universe, but are timestamp-aligned so not a leak vector).
 PER_TICKER_FEATURES = (
-    MOMENTUM_FEATURES + VOLATILITY_FEATURES + OSCILLATOR_FEATURES
-    + ["rel_vol_tod", "cum_vol_vs_20d", "volume_price_corr_26b"]
-    + TIME_FEATURES
+    INTRADAY_FEATURES + HORIZON_FEATURES + LONG_FEATURES + TIME_FEATURES
 )
 
 
@@ -140,25 +163,57 @@ def compute_features(bars: pd.DataFrame) -> pd.DataFrame:
     out["session"] = session
     out["close"] = px
 
-    # ── Momentum: trailing bar returns ──
-    for k in (1, 3, 12, 26, 78):
+    # ── Trailing bar returns ──
+    for k in (12, 26, 78):
         out[f"ret_{k}b"] = px.pct_change(k)
 
     # ── Daily aggregates from prior COMPLETED sessions ──
-    # daily_close[i] = last bar close of session i; a bar in session i may only
-    # reference daily_close up to session i-1 (shift >= 1 below).
-    daily_close = px.groupby(session.values).last()
+    # daily_*[i] = session i's aggregate; a bar in session i may only reference
+    # daily aggregates up to session i-1 (shift >= 1 below). The exception is
+    # gap_1d's session OPEN — the first bar of the bar's own session is past
+    # data by construction.
+    grouped = bars.groupby(session.values)
+    daily_close = grouped["Close"].last()
     daily_close.index = pd.DatetimeIndex(daily_close.index)
+    daily_idx = daily_close.index
+    daily_high = grouped["High"].max().set_axis(daily_idx)
+    daily_low = grouped["Low"].min().set_axis(daily_idx)
+    daily_open = grouped["Open"].first().set_axis(daily_idx)
+    daily_vol = grouped["Volume"].sum().astype(float).set_axis(daily_idx)
+    daily_ret = daily_close.pct_change()
     sess_of_bar = session.values  # aligns bars → their session date
 
     def _map_daily(s: pd.Series) -> np.ndarray:
         return s.reindex(sess_of_bar).to_numpy()
 
-    for k in (5, 21):
+    for k in (1, 3, 5, 10, 21, 63, 126):
         out[f"ret_{k}d"] = px.to_numpy() / _map_daily(daily_close.shift(k)) - 1.0
-    for k in (20, 50):
+    out["mom_12_1"] = _map_daily(daily_close.shift(21) / daily_close.shift(252) - 1.0)
+    for k in (20, 50, 200):
         mean_k = daily_close.shift(1).rolling(k).mean()
         out[f"dist_mean_{k}d"] = px.to_numpy() / _map_daily(mean_k) - 1.0
+    out["dist_52w_high"] = (
+        px.to_numpy() / _map_daily(daily_high.shift(1).rolling(252).max()) - 1.0
+    )
+
+    # Horizon-band price/vol dynamics
+    out["gap_1d"] = _map_daily(daily_open) / _map_daily(daily_close.shift(1)) - 1.0
+    sgn = np.sign(daily_ret)
+    streak_grp = (sgn != sgn.shift()).cumsum()
+    streak = (sgn.groupby(streak_grp).cumcount() + 1) * sgn
+    out["up_streak_d"] = _map_daily(streak.shift(1))
+    hi20 = daily_high.shift(1).rolling(20).max()
+    lo20 = daily_low.shift(1).rolling(20).min()
+    out["range_pos_20d"] = (px.to_numpy() - _map_daily(lo20)) / _map_daily(
+        (hi20 - lo20).replace(0.0, np.nan)
+    )
+    for k in (5, 10):
+        out[f"rvol_{k}d"] = _map_daily(
+            daily_ret.rolling(k).std().shift(1)
+        ) * np.sqrt(252)
+    out["vol_5d_vs_20d"] = _map_daily(
+        (daily_vol.rolling(5).mean() / daily_vol.rolling(20).mean()).shift(1)
+    )
 
     # ── Intraday VWAP distance ──
     # Cumulative from the session open. Alpaca supplies a per-bar VWAP; fall
@@ -223,6 +278,38 @@ def compute_features(bars: pd.DataFrame) -> pd.DataFrame:
     std20 = daily_close.shift(1).rolling(20).std()
     out["zscore_20d"] = (px.to_numpy() - _map_daily(mean20)) / _map_daily(
         std20.replace(0.0, np.nan)
+    )
+    out["bb_width_20d"] = _map_daily(4.0 * std20 / mean20)
+
+    # Daily volume-flow oscillators (all shift(1) → completed sessions only)
+    rng_d = (daily_high - daily_low).replace(0.0, np.nan)
+    mfm = ((daily_close - daily_low) - (daily_high - daily_close)) / rng_d
+    out["cmf_20d"] = _map_daily(
+        ((mfm * daily_vol).rolling(20).sum() / daily_vol.rolling(20).sum()).shift(1)
+    )
+    obv = (sgn.fillna(0.0) * daily_vol).cumsum()
+    out["obv_zscore_20d"] = _map_daily(
+        ((obv - obv.rolling(20).mean()) / obv.rolling(20).std().replace(0.0, np.nan)).shift(1)
+    )
+    tp = (daily_high + daily_low + daily_close) / 3.0
+    mf = tp * daily_vol
+    d_tp = tp.diff()
+    pos_mf = mf.where(d_tp > 0, 0.0).rolling(14).sum()
+    neg_mf = mf.where(d_tp < 0, 0.0).rolling(14).sum().replace(0.0, np.nan)
+    out["mfi_14d"] = _map_daily((100 - 100 / (1 + pos_mf / neg_mf)).shift(1))
+    sma_tp = tp.rolling(20).mean()
+    mad_tp = tp.rolling(20).apply(lambda x: np.abs(x - x.mean()).mean(), raw=True)
+    out["cci_20d"] = _map_daily(
+        ((tp - sma_tp) / (0.015 * mad_tp.replace(0.0, np.nan))).shift(1)
+    )
+    days_since_high = daily_high.rolling(25).apply(
+        lambda x: len(x) - 1 - np.argmax(x), raw=True
+    )
+    days_since_low = daily_low.rolling(25).apply(
+        lambda x: len(x) - 1 - np.argmin(x), raw=True
+    )
+    out["aroon_25d"] = _map_daily(
+        (((25 - days_since_high) - (25 - days_since_low)) / 25 * 100).shift(1)
     )
 
     # Auxiliary: 21d mean daily dollar volume through session t-1 (ranked

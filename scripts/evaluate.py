@@ -50,8 +50,13 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from backtest import build_price_matrices, model_picks, simulate  # noqa: E402
 from dataset import load_panel, walk_forward_windows  # noqa: E402
-from features import RANK_FEATURES, VOLUME_FEATURES  # noqa: E402
-from features import ALL_FEATURES  # noqa: E402
+from features import (  # noqa: E402
+    ALL_FEATURES,
+    INTRADAY_FEATURES,
+    LONG_FEATURES,
+    RANK_FEATURES,
+    VOLUME_FEATURES,
+)
 from labels import LABEL_COL  # noqa: E402
 from strategy import DEFAULT_SEED, REBALANCE_DAYS, TOP_N  # noqa: E402
 from train import (  # noqa: E402
@@ -158,10 +163,15 @@ def ablation_study(
     panel: pd.DataFrame, windows, params_per_window: list[dict], real_ic: float,
 ) -> dict:
     out = {"full_ic": round(real_ic, 4)}
+
+    def _without(group: list[str]) -> list[str]:
+        dropped = set(group) | {f"{g}_rank" for g in group}
+        return [f for f in ALL_FEATURES if f not in dropped]
+
     groups = {
-        "drop_volume": [f for f in ALL_FEATURES
-                        if f not in VOLUME_FEATURES
-                        and f not in [f"{v}_rank" for v in VOLUME_FEATURES]],
+        "drop_volume": _without(VOLUME_FEATURES),
+        "drop_intraday": _without(INTRADAY_FEATURES),
+        "drop_long": _without(LONG_FEATURES),
         "drop_ranks": [f for f in ALL_FEATURES if f not in RANK_FEATURES],
     }
     for name, cols in groups.items():

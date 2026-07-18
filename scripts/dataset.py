@@ -40,6 +40,7 @@ if _HERE not in sys.path:
 from data import load_bars  # noqa: E402
 from features import (  # noqa: E402
     ALL_FEATURES,
+    NULLABLE_FEATURES,
     PER_TICKER_FEATURES,
     compute_features,
 )
@@ -81,7 +82,11 @@ def load_panel(path: str = PANEL_PATH, drop_na: bool = True) -> pd.DataFrame:
 
     if drop_na:
         before = len(panel)
-        panel = panel.dropna(subset=FEATURE_COLS + [TARGET_COL]).reset_index(drop=True)
+        # NULLABLE_FEATURES (252d-warmup long features + their ranks) stay NaN
+        # for young listings — XGBoost handles missing natively; dropping those
+        # rows would delete every recent IPO/spinoff from the panel.
+        required = [c for c in FEATURE_COLS if c not in NULLABLE_FEATURES]
+        panel = panel.dropna(subset=required + [TARGET_COL]).reset_index(drop=True)
         print(
             f"Loaded {before:,} rows; dropped {before - len(panel):,} "
             f"(warmup NaN features or live-edge NaN labels) → {len(panel):,} usable.",
