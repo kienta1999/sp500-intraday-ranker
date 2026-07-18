@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+cron.log
+
+# Regeneratable data caches (universe.csv IS committed — it's the frozen universe contract)
+data/raw/
+data/market/
+data/processed/
+
+# Model artifacts and reports are regeneratable from data + code
+models/
+reports/
