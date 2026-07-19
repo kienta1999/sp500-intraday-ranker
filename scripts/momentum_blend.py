@@ -78,6 +78,35 @@ def picks_blend(oos_by_date, mom, dates, alpha: float, n: int) -> dict:
     return out
 
 
+def picks_momentum_veto(oos_by_date, mom, dates, k: int, n: int, veto_pct: float) -> dict:
+    """Momentum top-k pool, minus names the model ranks in its bottom
+    `veto_pct` that day, then top-n by MOMENTUM among survivors — the model
+    acts only as a bullshit detector, never as the engine."""
+    out = {}
+    for d in dates:
+        day = oos_by_date.get(d)
+        if day is None or d not in mom.index:
+            continue
+        df = day.set_index("ticker")
+        model_pct = df["y_pred"].rank(pct=True)
+        m = mom.loc[d].reindex(df.index).dropna()
+        pool = m.nlargest(k)
+        survivors = [t for t in pool.index if model_pct.get(t, 1.0) > veto_pct]
+        if len(survivors) >= n:
+            out[d] = pool.loc[survivors].nlargest(n).index.tolist()
+    return out
+
+
+def decile_table(oos: pd.DataFrame) -> pd.Series:
+    """Mean realized raw forward return by model-prediction decile (pooled) —
+    shows whether the model's skill is symmetric or loser-flagging."""
+    df = oos.dropna(subset=["y_true_raw"]).copy()
+    df["decile"] = df.groupby("date")["y_pred"].transform(
+        lambda s: pd.qcut(s.rank(method="first"), 10, labels=False)
+    )
+    return df.groupby("decile")["y_true_raw"].mean()
+
+
 def picks_pure(oos_by_date, mom, dates, source: str, n: int) -> dict:
     out = {}
     for d in dates:
@@ -119,6 +148,14 @@ def main() -> None:
     for n in (10, 20):
         variants[f"pure_momentum_n{n}"] = picks_pure(oos_by_date, mom, reb, "momentum", n)
     variants["pure_model_n20"] = picks_pure(oos_by_date, mom, reb, "model", 20)
+    for k, n, v in ((30, 20, 0.3), (40, 20, 0.3), (15, 10, 0.3), (30, 20, 0.5)):
+        variants[f"mom_veto_k{k}_n{n}_v{int(v*100)}"] = picks_momentum_veto(
+            oos_by_date, mom, reb, k, n, v
+        )
+
+    print("\nModel-prediction decile → mean realized forward return (pooled):")
+    print((decile_table(oos) * 100).round(3).to_string())
+    print(flush=True)
 
     results: dict[str, dict] = {}
     for name, picks in variants.items():

@@ -191,6 +191,21 @@ overkill, a steep one means the cadence earns its cost.
 
 ## Results log
 
+**Rounds 5-6 — 2026-07-19** · Portfolio construction + momentum blends on the
+saved 10d predictions (backtest-only; reports/topn_sweep_h10d.json,
+momentum_blend_h10d.json):
+
+- **Top-N sweep**: conversion improves monotonically with basket width —
+  top-5 +1.1% / top-10 +4.0% / top-20 +9.7% / **top-40 +11.8% CAGR**
+  (Sharpe 0.61). Confirms the thin-basket diagnosis, but even top-40 < SPY.
+- **Momentum×model blends**: every combination LOSES to pure momentum at the
+  same width (two-stage k50 +43.0% vs pure mom-10 +54.9%; best rank-blend
+  α=.75 +37.6% vs pure mom-20 +42.7%) and triples momentum's turnover. In
+  this regime the model's within-momentum selection subtracts value.
+- Next: momentum-with-veto (model only excludes its bottom-ranked names from
+  momentum's pool) + prediction-decile diagnostic to test whether the
+  model's skill is loser-flagging rather than winner-picking.
+
 **Round 4 — 2026-07-18** · Horizon experiments (full universe, quick params,
 holding period = horizon; archives in reports/h{5,10,21}_*.json):
 
