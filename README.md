@@ -193,6 +193,23 @@ overkill, a steep one means the cadence earns its cost.
 
 ## Results log
 
+**Round 10 — 2026-07-19** · Deployment realism (reports/veto_deploy.json):
+
+- **Cost drag is a non-issue**: 116 orders/yr measured → $1/order costs
+  1.16%/yr at $10k, 0.23% at $50k, 0.12% at $100k (0% on IBKR Lite).
+- **Vol-target overlay (0.20 target, sibling's recipe) earns its place**:
+  MaxDD −39.6% → **−30.4%** and Sharpe 0.97 → **1.03** for only −0.7pt CAGR
+  (+31.5% → +30.8%); average exposure 0.945.
+
+**THE DEPLOYABLE SPEC (paper-trade candidate)**: 12-1 momentum top-15 →
+model vetoes its bottom-30% → hold top-10 by momentum → rebalance every 10
+sessions → vol-target 0.20 exposure overlay. 7y OOS, net of costs:
+**+30.8% CAGR, Sharpe 1.03, MaxDD −30.4%** (vs SPY +13.9%/0.77/−34.2%,
+pure momentum +21.3%/0.71/−42.5%). `today.py` emits these picks daily.
+Note: config stays k15/v30 as originally tested — neighbors like k12/v30
+score even higher (+33.4%/0.99) but re-picking the best neighbor ex-post
+would be the +126% mistake again.
+
 **Round 9 — 2026-07-19** · Veto robustness battery
 (reports/veto_robustness.json) — **the lead survived all three tests**:
 
