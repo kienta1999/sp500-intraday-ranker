@@ -184,6 +184,35 @@ overkill, a steep one means the cadence earns its cost.
 
 ## Results log
 
+**Round 3b — 2026-07-18** · FULL universe (611 point-in-time tickers, 313k OOS
+predictions), full grid + MIN_TREES guard, 20 permutations:
+
+| Gate | Result |
+|---|---|
+| 1 IC | **FAIL** — mean 0.0136, NW t 1.34 (plain t 2.5) |
+| 2 Portfolio | **FAIL** — model +19.9% CAGR ≈ SPY (+20.6%); momentum +63.9%; random +11.1% |
+| 3 Permutation | PASS — real 0.0136 vs shuffled p95 0.0031 (signal real but weak) |
+| 4 Ablations | ranks −0.0043 and long −0.0035 help at full breadth; volume −0.0012; intraday ≈ 0 |
+| 5 Decay | still rises with horizon: 0.008 (1d) → 0.014 (5d) → 0.023 (21d) |
+
+Model-aging study (reports/model_aging.png): **flat** — frozen models show no
+measurable IC decay over 2.5y (quarterly retraining not yet justified by data).
+
+Diagnostics worth keeping: 63-day val slices are near-uninformative for config
+selection (val IC anti-correlates with test IC across windows); early stopping
+on RMSE is fragile (4/10 windows had every config stop under 50 trees — the
+MIN_TREES fallback caught them); paradoxically those 1-tree fallback models
+scored the best test ICs, i.e. one coarse split on `dist_mean_200d` beat fully
+trained models — the extra 500 trees learn mostly noise at this breadth.
+Verdict per decision rule: not deployable at 5d/full-universe as configured.
+Next candidates: IC-based early stopping (align stop/select/eval metrics),
+liquid-subset evaluation, and the 10–21d horizon the decay curve keeps voting
+for.
+
+**Round 3 — 2026-07-18** · VOID — grid selection bug: configs early-stopping
+at 0 trees could win the val-IC contest (3/10 windows picked 1-tree models);
+portfolio landed on the random baseline. Fixed by MIN_TREES disqualification.
+
 **Round 2 — 2026-07-18** · 155 tickers (backfill in progress), point-in-time
 membership active, `--quick` train (no grid), OOS 2024-01 → 2026-07 (10 windows):
 
