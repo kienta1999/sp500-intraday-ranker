@@ -110,6 +110,47 @@ def daily_ic(dates: pd.Series, y_true: pd.Series, y_pred: np.ndarray) -> float:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _make_daily_ic_metric(dates: pd.Series, y_true: pd.Series):
+    """Fast mean-daily-Spearman eval metric for early stopping.
+
+    Early stopping used to watch val RMSE while selection watched val IC —
+    on a noisy target the two disagree violently (round-3/3b postmortems:
+    entire grids stopping at 0 trees). Stopping on the SAME metric we select
+    and evaluate on removes the mismatch.
+
+    Speed: rank(y_true) per date is precomputed; per boosting iteration we
+    only rank predictions within each date (argsort) and use the closed form
+    for Spearman of tie-free rankings, Σ r_p·r_t via np.add.reduceat — ~ms
+    per iteration on a 40k-row validation slice.
+    """
+    order = np.argsort(np.asarray(dates), kind="stable")
+    sorted_dates = np.asarray(dates)[order]
+    starts = np.flatnonzero(np.r_[True, sorted_dates[1:] != sorted_dates[:-1]])
+    sizes = np.diff(np.r_[starts, len(sorted_dates)]).astype(float)
+
+    yt = np.asarray(y_true, dtype=float)[order]
+    true_ranks = np.empty_like(yt)
+    for s, n in zip(starts, sizes.astype(int)):
+        seg = yt[s : s + n]
+        true_ranks[s : s + n][np.argsort(seg, kind="stable")] = np.arange(1, n + 1)
+
+    valid = sizes > 2
+
+    def daily_ic_eval(y_true_arr: np.ndarray, y_pred: np.ndarray) -> float:
+        yp = np.asarray(y_pred, dtype=float)[order]
+        pred_ranks = np.empty_like(yp)
+        for s, n in zip(starts, sizes.astype(int)):
+            seg = yp[s : s + n]
+            pred_ranks[s : s + n][np.argsort(seg, kind="stable")] = np.arange(1, n + 1)
+        sums = np.add.reduceat(pred_ranks * true_ranks, starts)
+        n = sizes
+        with np.errstate(invalid="ignore", divide="ignore"):
+            ics = 12.0 * sums / (n * (n * n - 1.0)) - 3.0 * (n + 1.0) / (n - 1.0)
+        return float(np.nanmean(ics[valid]))
+
+    return daily_ic_eval
+
+
 def fit_one(
     params: dict,
     X_train: pd.DataFrame,
@@ -117,16 +158,26 @@ def fit_one(
     X_val: pd.DataFrame,
     y_val: pd.Series,
     seed: int = DEFAULT_SEED,
+    val_dates: pd.Series | None = None,
 ) -> xgb.XGBRegressor:
+    """Fit with early stopping on val daily IC (falls back to RMSE when
+    `val_dates` is absent — e.g. ad-hoc callers)."""
+    if val_dates is not None:
+        eval_metric = _make_daily_ic_metric(val_dates, y_val)
+        stopper = xgb.callback.EarlyStopping(
+            rounds=EARLY_STOPPING_ROUNDS, maximize=True, save_best=True
+        )
+        extra = dict(eval_metric=eval_metric, callbacks=[stopper])
+    else:
+        extra = dict(eval_metric="rmse", early_stopping_rounds=EARLY_STOPPING_ROUNDS)
     model = xgb.XGBRegressor(
         objective="reg:squarederror",
         tree_method="hist",
         device=DEVICE,
         n_estimators=N_ESTIMATORS,
-        early_stopping_rounds=EARLY_STOPPING_ROUNDS,
-        eval_metric="rmse",
         n_jobs=-1,
         random_state=seed,
+        **extra,
         **params,
     )
     model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
@@ -151,6 +202,7 @@ def run_window(
         model = fit_one(
             params, train[feature_cols], train[target_col],
             val[feature_cols], val[target_col], seed=seed,
+            val_dates=val["date"],
         )
         ic = daily_ic(val["date"], val[target_col], model.predict(val[feature_cols]))
         n_trees = int(model.best_iteration)
@@ -193,6 +245,7 @@ def rank_configs(
         model = fit_one(
             params, train[FEATURE_COLS], train[TARGET_COL],
             val[FEATURE_COLS], val[TARGET_COL], seed=seed,
+            val_dates=val["date"],
         )
         ic = daily_ic(val["date"], val[TARGET_COL], model.predict(val[FEATURE_COLS]))
         n_trees = int(model.best_iteration)

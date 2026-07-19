@@ -48,7 +48,10 @@ from labels import FORWARD_DAYS, LABEL_COL, PANEL_PATH, RAW_LABEL_COL  # noqa: E
 from strategy import DEFAULT_SEED  # noqa: E402
 
 MIN_TRAIN_DAYS = 504
-VAL_DAYS = 63
+# 126d val (was 63): a 63-day slice proved too noisy to select configs or
+# stop training on — val IC anti-correlated with test IC across rounds 3-4.
+# Doubling the slice halves the selection noise; affordable with 10y of data.
+VAL_DAYS = 126
 TEST_DAYS = 63
 PURGE_GAP = FORWARD_DAYS  # == label horizon (follows HORIZON_DAYS env)
 MIN_TEST_DAYS = 21      # accept a shorter final window down to this
