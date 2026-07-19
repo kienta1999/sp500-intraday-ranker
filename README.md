@@ -191,6 +191,18 @@ overkill, a steep one means the cadence earns its cost.
 
 ## Results log
 
+**Round 7 — 2026-07-19** · Momentum-veto + decile diagnostic
+(reports/momentum_blend_h10d.json): veto variants also lose to pure momentum
+(best +38.3% vs +42.7% at n=20). Decile table shows the model DOES rank
+(bottom decile 0.33%/10d → top 0.78%, mostly monotone) but the edge is too
+small to improve momentum in this regime by blending, filtering, or vetoing.
+**Momentum-combination avenue exhausted on the 2024-26 window.**
+Decision: extend history to 10y (Alpaca's full archive, 2016→) — doubles
+training data, triples OOS to ~22 quarters, and adds the 2018/2020/2022
+momentum-hostile regimes where the model's defensive tilt can actually be
+tested against the baseline. Universe rebuilt point-in-time for the 10y
+window: 721 members (105 delisted without sibling daily caches).
+
 **Rounds 5-6 — 2026-07-19** · Portfolio construction + momentum blends on the
 saved 10d predictions (backtest-only; reports/topn_sweep_h10d.json,
 momentum_blend_h10d.json):

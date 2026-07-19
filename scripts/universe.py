@@ -55,7 +55,8 @@ HISTORY_FILE = os.path.join(UNIVERSE_DIR, "sp500_history.parquet")
 
 SIBLING_ROOT = os.path.join(os.path.dirname(_ROOT), "ml-stock-forward-return")
 DOLLAR_VOL_WINDOW = 63   # trading days for the median dollar volume (backfill order)
-BACKFILL_YEARS = 5.0     # membership window for universe.csv — keep == data.DEFAULT_YEARS
+BACKFILL_YEARS = 10.0    # membership window for universe.csv — keep == data.DEFAULT_YEARS
+                         # (10y ≈ Alpaca's full SIP archive, back to 2016)
 UNKNOWN_SECTOR = "Unknown"
 
 

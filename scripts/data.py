@@ -58,7 +58,8 @@ RAW_DIR = os.path.join(_ROOT, "data", "raw")
 MARKET_DIR = os.path.join(_ROOT, "data", "market")
 SPY_DAILY_PATH = os.path.join(MARKET_DIR, "SPY_daily.parquet")
 
-DEFAULT_YEARS = 5.0  # 252d long-feature warmup eats ~1y; 5y keeps ~2y of OOS
+DEFAULT_YEARS = 10.0  # ~Alpaca's full SIP archive (2016→); spans the 2018/2020/2022
+                      # drawdowns so walk-forward OOS covers momentum-hostile regimes too
 NY_TZ = "America/New_York"
 # Regular trading hours, in bar-START times: 09:30 first bar, 15:55 last
 # (covers 15:55–16:00). Alpaca returns pre/post-market bars; drop them at
