@@ -193,6 +193,29 @@ overkill, a steep one means the cadence earns its cost.
 
 ## Results log
 
+**Round 9 — 2026-07-19** · Veto robustness battery
+(reports/veto_robustness.json) — **the lead survived all three tests**:
+
+1. *Stability surface (12 cells, k∈{12,15,20,25} × veto∈{20,30,40}%)*: a
+   smooth hill, not a spike — the whole k12-15 region sits at +28-33% CAGR /
+   Sharpe 0.88-0.99; wider pools degrade gracefully (+17-27%). The winning
+   cell is typical of its neighborhood.
+2. *Offset schedules*: veto ≥ pure momentum on ALL 5 rebalance offsets
+   (veto +20.1%→+31.5% vs momentum +19.6%→+23.4%); worst veto ≈ best momentum.
+3. *Per-year attribution*: edge positive in ALL 8 years — strongest where
+   momentum bleeds (2020: +12.6, 2021: +12.7, 2022: +5.9) AND in melt-ups
+   (2024: +16.6, 2026: +15.3). Not one lucky year.
+
+Caveats that remain: the veto family was conceived after round 7 (though it
+FAILED on 2024-26 data and was confirmed only on the 7y OOS — closer to a
+pre-registered hypothesis than a fitted one); project-wide we've tested ~40
+variants on this OOS, so some selection pressure exists. Costs ($1 + 3bps)
+included; turnover 0.87/rebalance.
+
+**Strategy promoted**: momentum top-15 → model vetoes bottom-30% → hold 10,
+10-session rebalance. Next: wire into today.py picks, cost accounting at
+account sizes, vol-target overlay for the −39% MaxDD.
+
 **Round 8 — 2026-07-19 (overnight)** · THE DECADE RUN: 10y bars, 721
 point-in-time members, 29 OOS quarters (2019-04 → 2026-07, incl. COVID +
 2022 bear), 10d horizon, IC-early-stopping trainer, 126d val, full grid.
