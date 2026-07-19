@@ -57,7 +57,7 @@ from features import (  # noqa: E402
     RANK_FEATURES,
     VOLUME_FEATURES,
 )
-from labels import LABEL_COL  # noqa: E402
+from labels import FORWARD_DAYS, LABEL_COL  # noqa: E402
 from strategy import DEFAULT_SEED, REBALANCE_DAYS, TOP_N  # noqa: E402
 from train import (  # noqa: E402
     OOS_PATH,
@@ -102,7 +102,7 @@ def newey_west_tstat(x: pd.Series, lags: int = 5) -> float:
 def ic_gate(oos: pd.DataFrame) -> tuple[dict, pd.Series]:
     ics = daily_ic_series(oos["date"], oos["y_true_excess"], oos["y_pred"].to_numpy())
     mean_ic = float(ics.mean())
-    t_nw = newey_west_tstat(ics)
+    t_nw = newey_west_tstat(ics, lags=FORWARD_DAYS)
     t_plain = float(mean_ic / (ics.std() / np.sqrt(len(ics))))
     res = {
         "mean_ic": round(mean_ic, 4),
@@ -217,7 +217,8 @@ def decay_curve(oos: pd.DataFrame, close: pd.DataFrame, spy_close: pd.Series) ->
 def cost_sensitivity(oos: pd.DataFrame, prices: dict) -> dict:
     dates = sorted(pd.to_datetime(oos["date"]).unique())
     calendar = pd.DatetimeIndex(dates)
-    picks = model_picks(oos, list(dates[0::REBALANCE_DAYS]))
+    # Holding period follows the label horizon (matches backtest --rebalance-days).
+    picks = model_picks(oos, list(dates[0::FORWARD_DAYS]))
     table = {}
     for cpo in COST_GRID_ORDERS:
         for bps in COST_GRID_BPS:

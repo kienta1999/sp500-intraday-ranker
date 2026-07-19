@@ -39,10 +39,15 @@ from features import SAMPLED_PATH  # noqa: E402
 _ROOT = os.path.dirname(_HERE)
 PANEL_PATH = os.path.join(_ROOT, "data", "processed", "panel.parquet")
 
-FORWARD_DAYS = 5
-CLIP_PCT = 0.20
-RAW_LABEL_COL = "forward_5d_return"
-LABEL_COL = "forward_5d_excess_spy"
+# Label horizon in trading days. Overridable via env for horizon experiments
+# (the decay curve keeps voting for 10-21d):  HORIZON_DAYS=21 uv run ...
+# dataset.py's purge gap and evaluate.py's Newey-West lag follow it.
+FORWARD_DAYS = int(os.environ.get("HORIZON_DAYS", "5"))
+# Clip scales with sqrt(horizon) so the tail treatment stays comparable
+# (±20% at 5d → ±41% at 21d, ≈ sibling's ±50% convention at its 21d horizon).
+CLIP_PCT = round(0.20 * (FORWARD_DAYS / 5) ** 0.5, 2)
+RAW_LABEL_COL = f"forward_{FORWARD_DAYS}d_return"
+LABEL_COL = f"forward_{FORWARD_DAYS}d_excess_spy"
 
 
 def forward_returns(close: pd.Series, days: int = FORWARD_DAYS) -> pd.Series:

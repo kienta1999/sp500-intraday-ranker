@@ -5,6 +5,13 @@ Short-term cross-sectional momentum ranker on the S&P 500: predict each stock's
 features, rank the universe daily at the 15:25 ET bar, hold the top 10 with a
 weekly rebalance.
 
+> **STATUS (2026-07-18): gates FAILED at 5d/full-universe** — model ≈ SPY
+> after costs (+19.9% CAGR vs SPY +20.6%), far behind the 12-1 momentum
+> baseline (+63.9%). Signal is real (permutation-clean IC 0.014) but weak
+> and slow (IC rises toward 21d horizons). Improvement experiments in
+> progress: longer label horizons (10d/21d), simpler models, liquid subset.
+> See the Results log below. Not deployable in current form.
+
 Sibling project: [`ml-stock-forward-return`](../ml-stock-forward-return) — the
 21-day / daily-bar version whose architecture this repo mirrors. What changes
 here: data is 5-minute bars from **Alpaca Market Data** (SIP consolidated tape),

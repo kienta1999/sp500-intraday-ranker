@@ -44,13 +44,13 @@ from features import (  # noqa: E402
     PER_TICKER_FEATURES,
     compute_features,
 )
-from labels import LABEL_COL, PANEL_PATH, RAW_LABEL_COL  # noqa: E402
+from labels import FORWARD_DAYS, LABEL_COL, PANEL_PATH, RAW_LABEL_COL  # noqa: E402
 from strategy import DEFAULT_SEED  # noqa: E402
 
 MIN_TRAIN_DAYS = 504
 VAL_DAYS = 63
 TEST_DAYS = 63
-PURGE_GAP = 5           # == label horizon
+PURGE_GAP = FORWARD_DAYS  # == label horizon (follows HORIZON_DAYS env)
 MIN_TEST_DAYS = 21      # accept a shorter final window down to this
 
 FEATURE_COLS: list[str] = ALL_FEATURES

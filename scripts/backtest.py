@@ -227,10 +227,12 @@ def _print_stats(label: str, stats: dict, extra: str = "") -> None:
     )
 
 
-def print_summary(stats: dict, calendar: pd.DatetimeIndex) -> None:
+def print_summary(
+    stats: dict, calendar: pd.DatetimeIndex, rebalance_days: int = REBALANCE_DAYS
+) -> None:
     print(
         f"\nBacktest summary (OOS {calendar[0].date()} → {calendar[-1].date()}, "
-        f"top-{TOP_N} every {REBALANCE_DAYS} sessions, net of costs):"
+        f"top-{TOP_N} every {rebalance_days} sessions, net of costs):"
     )
     for key in ("model_next_open", "model_same_day_1535", "momentum_12_1",
                 "random_10", "spy"):
@@ -297,10 +299,13 @@ def run_backtest(
     capital: float = DEFAULT_CAPITAL,
     cost_per_order: float = COST_PER_ORDER,
     spread_bps: float = SPREAD_BPS,
+    rebalance_days: int = REBALANCE_DAYS,
     quiet: bool = False,
 ) -> tuple[pd.DataFrame, dict]:
     """Run all variants. Returns (equity paths DataFrame, stats dict).
-    Exposed for evaluate.py's cost-sensitivity table."""
+    Exposed for evaluate.py's cost-sensitivity table. `rebalance_days`
+    should match the label horizon (5 default; horizon experiments pass
+    their own so the holding period tracks what the model predicts)."""
     oos = oos.copy()
     oos["date"] = pd.to_datetime(oos["date"])
     dates = sorted(oos["date"].unique())
@@ -314,7 +319,7 @@ def run_backtest(
     # Model, both fill modes, offset 0 (headline) + offset band on next_open.
     offset_navs = []
     for off in range(N_OFFSETS):
-        reb = list(dates[off::REBALANCE_DAYS])
+        reb = list(dates[off::rebalance_days])
         picks = model_picks(oos, reb)
         nav, to = simulate(picks, prices, calendar, fill_mode="next_open", **kw)
         offset_navs.append(nav)
@@ -332,7 +337,7 @@ def run_backtest(
         (offs.iloc[-1] / offs.iloc[0] - 1).quantile([0.1, 0.5, 0.9]).tolist()
     ]
 
-    reb0 = list(dates[0::REBALANCE_DAYS])
+    reb0 = list(dates[0::rebalance_days])
 
     picks = momentum_picks(prices["close"], reb0, universe_by_date)
     nav, to = simulate(picks, prices, calendar, fill_mode="next_open", **kw)
@@ -365,7 +370,7 @@ def run_backtest(
 
     eq = pd.DataFrame(equity)
     if not quiet:
-        print_summary(stats, calendar)
+        print_summary(stats, calendar, rebalance_days)
     return eq, stats
 
 
@@ -397,6 +402,10 @@ def plot_equity(eq: pd.DataFrame, path: str) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--capital", type=float, default=DEFAULT_CAPITAL)
+    ap.add_argument(
+        "--rebalance-days", type=int, default=REBALANCE_DAYS,
+        help="Holding period in sessions — match the label horizon.",
+    )
     args = ap.parse_args()
 
     if not os.path.exists(OOS_PATH):
@@ -408,7 +417,9 @@ def main() -> None:
 
     prices = build_price_matrices(tickers)
     print("\nRunning variants...", flush=True)
-    eq, stats = run_backtest(oos, prices, capital=args.capital)
+    eq, stats = run_backtest(
+        oos, prices, capital=args.capital, rebalance_days=args.rebalance_days
+    )
 
     os.makedirs(REPORTS_DIR, exist_ok=True)
     eq.to_csv(os.path.join(REPORTS_DIR, "backtest_equity.csv"))

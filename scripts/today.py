@@ -71,9 +71,11 @@ def main() -> None:
 
     print(f"\nSession {latest.date()} — decision bar {picks['timestamp'].iloc[0]}")
     print(f"Model: {os.path.basename(model_path)}  |  universe scored: {len(day)} tickers\n")
+    from labels import FORWARD_DAYS  # noqa: E402 (local: keeps import graph flat)
+
     print(
         picks.drop(columns="timestamp")
-        .rename(columns={"predicted_return": "pred_5d_excess_spy"})
+        .rename(columns={"predicted_return": f"pred_{FORWARD_DAYS}d_excess_spy"})
         .to_string(float_format=lambda x: f"{x:+.4f}" if abs(x) < 1 else f"{x:,.2f}")
     )
     print("\n(paper tracking only until the README gates pass)")
