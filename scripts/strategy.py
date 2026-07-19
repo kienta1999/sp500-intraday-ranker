@@ -23,6 +23,16 @@ from features import ALL_FEATURES as FEATURE_COLS  # noqa: E402, F401
 # Portfolio rules (the evaluation portfolio; gate 2).
 TOP_N = 10
 REBALANCE_DAYS = 5            # weekly (every 5 trading days)
+
+# The PROMOTED strategy (round 9, 2026-07-19): momentum-with-veto.
+# 12-1 momentum picks its top VETO_POOL names; the model excludes any it
+# ranks in its bottom VETO_PCT percentile that day; hold the top TOP_N
+# survivors by momentum, rebalance every VETO_REBALANCE_DAYS sessions.
+# Survived the robustness battery: smooth config neighborhood, wins on all
+# 5 offsets and in all 8 OOS years (reports/veto_robustness.json).
+VETO_POOL = 15
+VETO_PCT = 0.30
+VETO_REBALANCE_DAYS = 10
 COST_PER_ORDER = 1.00         # dollars per order ($1/order broker commission)
 SPREAD_BPS = 3.0              # half-spread cost per side, basis points
 DEFAULT_CAPITAL = 100_000.0

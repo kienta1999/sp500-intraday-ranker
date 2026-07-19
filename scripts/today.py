@@ -46,9 +46,30 @@ def latest_model_path() -> str:
     return paths[-1]
 
 
+def veto_picks(day: pd.DataFrame, top_n: int) -> pd.DataFrame:
+    """The promoted strategy: momentum top-VETO_POOL, model vetoes its
+    bottom-VETO_PCT, hold the top-n survivors by momentum."""
+    from strategy import VETO_PCT, VETO_POOL  # noqa: E402
+
+    scored = day.dropna(subset=["mom_12_1"]).copy()
+    scored["model_pct"] = scored["predicted_return"].rank(pct=True)
+    pool = scored.nlargest(VETO_POOL, "mom_12_1")
+    survivors = pool[pool["model_pct"] > VETO_PCT]
+    picks = survivors.nlargest(top_n, "mom_12_1").copy()
+    picks["vetoed_from_pool"] = ", ".join(
+        pool.loc[pool["model_pct"] <= VETO_PCT, "ticker"]
+    )
+    return picks
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--top-n", type=int, default=TOP_N)
+    ap.add_argument(
+        "--mode", choices=("veto", "model"), default="veto",
+        help="veto = promoted momentum-with-veto strategy (default); "
+             "model = legacy pure-model ranking (research only).",
+    )
     args = ap.parse_args()
 
     panel = load_panel(drop_na=False)
@@ -64,13 +85,22 @@ def main() -> None:
 
     model_path = latest_model_path()
     scored = predict(day, load_model(model_path))
-    picks = top_picks(scored, args.top_n)[
-        ["ticker", "predicted_return", "close", "timestamp"]
-    ].reset_index(drop=True)
+    if args.mode == "veto":
+        picks = veto_picks(scored, args.top_n)
+        vetoed = picks["vetoed_from_pool"].iloc[0] if len(picks) else ""
+        picks = picks[["ticker", "mom_12_1", "predicted_return", "close", "timestamp"]]
+    else:
+        picks = top_picks(scored, args.top_n)[
+            ["ticker", "predicted_return", "close", "timestamp"]
+        ]
+    picks = picks.reset_index(drop=True)
     picks.index += 1
 
-    print(f"\nSession {latest.date()} — decision bar {picks['timestamp'].iloc[0]}")
-    print(f"Model: {os.path.basename(model_path)}  |  universe scored: {len(day)} tickers\n")
+    print(f"\nSession {latest.date()} — decision bar {picks['timestamp'].iloc[0]} — strategy: {args.mode}")
+    print(f"Model: {os.path.basename(model_path)}  |  universe scored: {len(day)} tickers")
+    if args.mode == "veto" and vetoed:
+        print(f"Model VETOED from the momentum pool: {vetoed}")
+    print()
     from labels import FORWARD_DAYS  # noqa: E402 (local: keeps import graph flat)
 
     print(
