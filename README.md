@@ -191,6 +191,22 @@ overkill, a steep one means the cadence earns its cost.
 
 ## Results log
 
+**Round 4 — 2026-07-18** · Horizon experiments (full universe, quick params,
+holding period = horizon; archives in reports/h{5,10,21}_*.json):
+
+| Horizon | IC | NW-t | Model CAGR (net) | Momentum CAGR | Gate 1 |
+|---|---|---|---|---|---|
+| 5d | 0.0136 | 1.34 | +19.9% | +63.9% | fail |
+| **10d** | **0.0259** | **1.95** | +4.0% | +54.9% | fail (barely) |
+| 21d | 0.0183 | 1.00 | +9.1% | +55.1% | fail |
+
+Split decision: the decay curve was right — IC nearly doubles at 10d and the
+t-stat almost clears the gate — but the portfolio result COLLAPSED at longer
+horizons. Diagnosis: fewer rebalances (~62 at 10d, ~26 at 21d) × a top-10
+basket = too thin a sample of the ranking to convert IC into return (rank
+quality ≠ top-of-book quality). Next: portfolio-construction sweep (top-N ∈
+{5,10,20,40}) on the saved 10d predictions — backtest-only, no retraining.
+
 **Round 3b — 2026-07-18** · FULL universe (611 point-in-time tickers, 313k OOS
 predictions), full grid + MIN_TREES guard, 20 permutations:
 
