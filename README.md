@@ -193,6 +193,14 @@ overkill, a steep one means the cadence earns its cost.
 
 ## Results log
 
+**Round 11 — 2026-07-19** · 21d-horizon veto variant (10y retrain, monthly-ish
+rebalance; reports/momentum_blend_h21d_10y.json): the veto effect REPLICATES
+at 21d — all configs ≥ pure momentum, best +27.2%/Sharpe 0.94 vs +18.3%/0.71
+— further evidence the mechanism is real, not a horizon artifact. But the
+10d spec remains superior (+30.8%/1.03 with overlay). Hunt phase concludes;
+loop shifts toward paper-tracking cadence (scripts/scorecard.py accrues one
+unfakeable graded row per trading day).
+
 **Round 10 — 2026-07-19** · Deployment realism (reports/veto_deploy.json):
 
 - **Cost drag is a non-issue**: 116 orders/yr measured → $1/order costs
