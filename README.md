@@ -98,12 +98,59 @@ uv run python scripts/train.py --quick                    # walk-forward with fi
 uv run python scripts/backtest.py                         # portfolio sim + baselines from the OOS predictions
 uv run python scripts/evaluate.py                         # gates + validation.html (permutation test is slow)
 uv run python scripts/evaluate.py --n-perm 5              # faster evaluation pass
+uv run python scripts/model_aging.py                      # IC vs model staleness (after a retrain)
+uv run python scripts/today.py                            # today's top-10 from the newest model
 ```
 
 Results land in `reports/validation.html` (gate table, IC time series, decay
 curve, equity curves for both fill modes, turnover, cost sensitivity) —
 machine-readable copies in `reports/validation_metrics.json` and
 `reports/backtest_stats.json`.
+
+## How it works — the 5-minute tour
+
+**One training example** = one stock on one day, photographed at the 15:25 ET
+bar. Inputs: 85 features — the stock's returns over the last hour/day/week/
+month/quarter, VWAP and moving-average distances, oscillators (RSI/MACD/
+Bollinger/…), time-of-day-normalized volume abnormality, and its percentile
+rank vs the rest of the universe on each measure at that same moment. Target:
+its next-5-trading-day return minus SPY's, clipped ±20%. The model learns
+"stocks that look like *this* at 15:25 tend to beat/lag SPY by *this much*
+over the next week"; at prediction time we only use the *ranking* of its
+scores. Pool: 611 point-in-time tickers × ~1,250 sessions ≈ 630k examples.
+
+**Walk-forward windows.** The 5 years are sliced into ~10 overlapping
+experiments ("windows"), each one quarter later than the last:
+
+| Window | Trains on | Validates on | Tests on (its OOS quarter) |
+|---|---|---|---|
+| 0 | 2021-07 → 2023-09 (~2.2y) | next 63 days | 2024-01 → 2024-04 |
+| 1 | 2021-07 → 2023-12 | next 63 days | 2024-04 → 2024-07 |
+| ⋮ | (train end slides forward a quarter each window) | ⋮ | ⋮ |
+| 9 | 2021-07 → 2026-01 (~4.5y) | next 63 days | 2026-04 → 2026-07 |
+
+5-trading-day purge gaps sit at every boundary (the label horizon) so no
+label straddles a split. The test quarters tile 2024-01 → 2026-07 with no
+overlap; pooled, they are THE out-of-sample record every reported number
+comes from. Each window's test data becomes the next window's training data
+— used for testing exactly once, then absorbed, like live operation.
+
+**Why so many windows/models?** One window would rest the entire verdict on
+~13 weekly bets in one quarter — luck, not evidence. Ten windows give a
+2.5-year OOS record (623 days), cover several regimes, and cost nothing but
+compute. Many windows is how a backtest stops being an anecdote and becomes
+a sample. One window = one model file (`models/xgb_wf_<test_start>.json`,
+named by its test quarter's first day); the backtest never loads these — it
+consumes only the pooled `oos_predictions.parquet`. The newest model file is
+what `today.py` uses for live picks.
+
+**Retraining cadence.** Weekly rebalances just *score* with the frozen
+newest model (seconds). Retraining is quarterly-ish (`--retrain`) — the
+walk-forward is a rehearsal of exactly that ritual. Whether quarterly is
+actually necessary is an empirical question: `scripts/model_aging.py` scores
+every window model on every later quarter (still OOS for it) and plots IC vs
+model age (`reports/model_aging.png`) — a flat curve means retraining is
+overkill, a steep one means the cadence earns its cost.
 
 ## Design notes
 
