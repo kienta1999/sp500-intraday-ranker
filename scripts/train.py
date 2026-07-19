@@ -60,6 +60,9 @@ PARAMS_PATH = os.path.join(REPORTS_DIR, "walkforward_params.json")
 
 N_ESTIMATORS = 1500
 EARLY_STOPPING_ROUNDS = 100
+# GTX 1050 Ti measures ~6x faster than CPU on this panel; set "cpu" if the
+# GPU is unavailable (xgboost raises rather than silently falling back).
+DEVICE = "cuda"
 TOP_CONFIGS = 6  # configs carried from window 0 into later windows
 
 # --quick: skip the grid entirely, one sane fixed config per window (early
@@ -111,6 +114,7 @@ def fit_one(
     model = xgb.XGBRegressor(
         objective="reg:squarederror",
         tree_method="hist",
+        device=DEVICE,
         n_estimators=N_ESTIMATORS,
         early_stopping_rounds=EARLY_STOPPING_ROUNDS,
         eval_metric="rmse",
