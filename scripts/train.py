@@ -63,6 +63,13 @@ EARLY_STOPPING_ROUNDS = 100
 # GTX 1050 Ti measures ~6x faster than CPU on this panel; set "cpu" if the
 # GPU is unavailable (xgboost raises rather than silently falling back).
 DEVICE = "cuda"
+
+# Early stopping watches RMSE while grid selection watches val IC. On a noisy
+# target, aggressive configs (lr=0.1) can early-stop after ~0 trees, and the
+# near-constant model's ranking occasionally flukes a great IC on a 63-day val
+# slice (round-3 postmortem: 3 of 10 windows picked 0-tree models). A config
+# is only eligible for selection if it actually trained:
+MIN_TREES = 50
 TOP_CONFIGS = 6  # configs carried from window 0 into later windows
 
 # --quick: skip the grid entirely, one sane fixed config per window (early
@@ -139,16 +146,26 @@ def run_window(
     train, val, test = window_slices(panel, w)
 
     best: tuple[float, dict, xgb.XGBRegressor] | None = None
+    fallback: tuple[int, float, dict, xgb.XGBRegressor] | None = None
     for params in configs:
         model = fit_one(
             params, train[feature_cols], train[target_col],
             val[feature_cols], val[target_col], seed=seed,
         )
         ic = daily_ic(val["date"], val[target_col], model.predict(val[feature_cols]))
-        if best is None or ic > best[0]:
-            best = (ic, params, model)
+        n_trees = int(model.best_iteration)
+        if n_trees >= MIN_TREES:
+            if best is None or ic > best[0]:
+                best = (ic, params, model)
+        elif fallback is None or n_trees > fallback[0]:
+            fallback = (n_trees, ic, params, model)
 
-    val_ic, best_params, model = best
+    if best is None:
+        # Every config under-trained (can happen on a tiny --smoke panel):
+        # take the one that trained the most trees rather than crash.
+        _, val_ic, best_params, model = fallback
+    else:
+        val_ic, best_params, model = best
     preds = pd.DataFrame(
         {
             "date": test["date"].to_numpy(),
@@ -178,10 +195,16 @@ def rank_configs(
             val[FEATURE_COLS], val[TARGET_COL], seed=seed,
         )
         ic = daily_ic(val["date"], val[TARGET_COL], model.predict(val[FEATURE_COLS]))
-        scored.append((ic, params))
-        print(f"  grid {params}: val IC={ic:+.4f}", flush=True)
+        n_trees = int(model.best_iteration)
+        eligible = n_trees >= MIN_TREES
+        scored.append((ic if eligible else -np.inf, params))
+        print(
+            f"  grid {params}: val IC={ic:+.4f} trees={n_trees}"
+            + ("" if eligible else "  [disqualified: under-trained]"),
+            flush=True,
+        )
     scored.sort(key=lambda x: x[0], reverse=True)
-    return [p for _, p in scored]
+    return [p for s, p in scored if s > -np.inf] or [p for _, p in scored]
 
 
 def run_walk_forward(
