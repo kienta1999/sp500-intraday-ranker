@@ -5,12 +5,14 @@ Short-term cross-sectional momentum ranker on the S&P 500: predict each stock's
 features, rank the universe daily at the 15:25 ET bar, hold the top 10 with a
 weekly rebalance.
 
-> **STATUS (2026-07-18): gates FAILED at 5d/full-universe** — model ≈ SPY
-> after costs (+19.9% CAGR vs SPY +20.6%), far behind the 12-1 momentum
-> baseline (+63.9%). Signal is real (permutation-clean IC 0.014) but weak
-> and slow (IC rises toward 21d horizons). Improvement experiments in
-> progress: longer label horizons (10d/21d), simpler models, liquid subset.
-> See the Results log below. Not deployable in current form.
+> **STATUS (2026-07-19, after round 8 — 10 years, 29 OOS quarters):** the
+> standalone ML ranker is **dead** (decade IC 0.0045, t=0.5; portfolio ≈
+> random at every basket width; intraday features NEGATIVE over the decade).
+> One live lead survives: **momentum-with-model-veto** — momentum picks,
+> model excludes its bottom-ranked names — beat pure momentum across all 4
+> tested configs over 7y OOS (best: +31.5% CAGR, Sharpe 0.97 vs momentum's
+> +21.3%/0.71), pending a robustness battery (config stability, offsets,
+> per-year attribution). Everything else: not deployable. See Results log.
 
 Sibling project: [`ml-stock-forward-return`](../ml-stock-forward-return) — the
 21-day / daily-bar version whose architecture this repo mirrors. What changes
@@ -190,6 +192,35 @@ overkill, a steep one means the cadence earns its cost.
   `data/raw/`.
 
 ## Results log
+
+**Round 8 — 2026-07-19 (overnight)** · THE DECADE RUN: 10y bars, 721
+point-in-time members, 29 OOS quarters (2019-04 → 2026-07, incl. COVID +
+2022 bear), 10d horizon, IC-early-stopping trainer, 126d val, full grid.
+Archives: reports/r8_10y_*.json, oos_r8_10y.parquet.
+
+*The standalone model is dead:*
+- IC 0.0045 (NW-t 0.5) over 1,804 days — permutation-clean but economically nil.
+- Portfolio ≈ random at every width (top-5/10/20/40 all +7-10% CAGR, Sharpe
+  ~0.4, −61% MaxDD at top-10) vs SPY +13.9%/0.77.
+- **Ablation referendum: intraday features are NEGATIVE over the decade**
+  (drop → IC +0.0031). Volume also negative. Only cross-sectional ranks help.
+- Context: momentum's own edge deflates to +7.5%/yr over SPY (Sharpe 0.71 <
+  SPY's 0.77) across the decade — 2024-26 flattered everyone.
+
+*The surviving lead — momentum-with-veto (model as loser-flagger only):*
+| Variant | CAGR | Sharpe | MaxDD | vs pure momentum same width |
+|---|---|---|---|---|
+| veto k15→n10 v30 | **+31.5%** | **0.97** | −39.6% | +21.3% / 0.71 |
+| veto k30→n20 v30 | +19.6% | 0.76 | −39.3% | +18.4% / 0.70 |
+| veto k30→n20 v50 | +20.9% | 0.79 | −34.3% | " |
+| veto k40→n20 v30 | +17.9% | 0.71 | −39.3% | " |
+
+All four ≥ pure momentum; the concentrated one is large. CAUTION: the best
+cell was selected ex-post from 4 candidates (mild snooping) and reverses the
+2024-26 result (veto hurt there) — consistent with the model's value being
+crash-regime loser-avoidance. Robustness battery before believing it:
+neighbor-config stability surface, offset bands, per-year attribution,
+cost grid.
 
 **Round 7 — 2026-07-19** · Momentum-veto + decile diagnostic
 (reports/momentum_blend_h10d.json): veto variants also lose to pure momentum
