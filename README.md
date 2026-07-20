@@ -250,6 +250,104 @@ overkill, a steep one means the cadence earns its cost.
   hours only (bar starts 09:30–15:55 ET), stored tz-aware UTC per ticker under
   `data/raw/`.
 
+## Lessons from building this
+
+Written 2026-07-19 after 11 experiment rounds. These are the things that cost
+real time to learn — read this before starting the next strategy.
+
+### On being fooled
+
+**1. The dartboard test catches survivorship bias instantly.** Always backtest
+a *random* portfolio alongside the real one. Round 1 showed the model earning
++126% CAGR — and randomly chosen stocks earning **+62%**. When darts triple
+the market, the universe is rigged, not the strategy good. The cause: ranking
+by *today's* dollar volume and backtesting the past, i.e. picking from a basket
+someone already filled with winners. Fix: point-in-time membership (a stock
+appears on a date only if it was in the index that day, delisted names
+included). After the fix, random-10 fell to ≈ SPY and the model's "edge"
+mostly evaporated with it.
+
+**2. A dumb baseline is the only honest yardstick.** 12-1 momentum — one line
+of pandas, published 1993 — beat this entire 85-feature pipeline for most of
+the project. Any ML result that isn't compared against the obvious rule is
+decoration. Corollary: pick the baseline *before* seeing your own results.
+
+**3. Regime monoculture flatters everything.** On 2024-26 data, momentum
+returned +64%/yr and every strategy looked brilliant. Over the full decade
+(incl. COVID and 2022) the same baseline returned +21% with a Sharpe *below*
+SPY's. Two and a half years of backtest is an anecdote; a decade spanning
+drawdowns is evidence.
+
+**4. Count your selection pressure.** ~40 variants were tested against the same
+out-of-sample window here. Every extra variant makes the surviving winner less
+trustworthy — the best cell of any table is partly luck. Mitigations used:
+never re-pick the best neighbor after seeing a surface, keep failed rounds in
+the log, and treat forward paper tracking as the only clean test.
+
+### On the machinery
+
+**5. Align the metrics: stop, select, and evaluate on the SAME thing.** Early
+stopping watched RMSE while model selection watched rank IC. On a noisy target
+these disagree violently — whole grids stopped at ~0 trees, and near-constant
+models won the selection contest by fluke. Fixed by early-stopping on daily
+rank IC directly (`_make_daily_ic_metric` in train.py).
+
+**6. Guard against under-trained models winning.** A 1-tree model can post a
+great validation score on a short window. `MIN_TREES = 50` disqualifies
+configs that never really trained. Round 3 was voided by exactly this bug.
+
+**7. Short validation windows lie.** With 63 trading days, validation IC
+*anti-correlated* with test IC — worse than useless for selection. Doubling to
+126 days fixed it. If your val slice can't rank configs, no amount of grid
+search helps.
+
+**8. Match feature timescales to the label horizon.** A 50-minute RSI cannot
+predict a 5-day return; the rule of thumb is lookbacks within ~0.5×–10× of the
+horizon. Features were reorganized into intraday / horizon-band (1-50d) /
+long (63-252d) buckets, with the densest coverage around the horizon, and
+each bucket ablated separately to measure its real contribution.
+
+**9. Measure the retraining cadence instead of assuming it.** `model_aging.py`
+scores every walk-forward model on every *later* quarter. The curve came out
+flat — a two-year-old model ranked as well as a fresh one. Quarterly retraining
+is a ritual here, not a necessity.
+
+### On the result
+
+**10. A negative result can be repurposed.** As a stock picker the model is
+dead (decade IC 0.0045, returns ≈ random, intraday features *negative*). But
+its prediction deciles were monotone — it separated good from bad, just too
+weakly to pick winners. Flipping its role from **picker to veto** (remove
+momentum's worst names) turned a failed model into +9 CAGR points and −12
+points of drawdown. Ask what a weak signal *can* do before discarding it.
+
+**11. Portfolio construction is a first-class variable.** The same predictions
+returned +1.1% (top-5) to +11.8% (top-40) depending only on basket width.
+Ranking skill and top-of-book skill are different things; a good IC converts to
+nothing if the basket is too thin to sample it.
+
+**12. Verify a winner three ways before believing it.** (a) *Neighborhood*: do
+nearby configs also win? Real edges are smooth hills, mirages are lone spikes.
+(b) *Schedule*: does it survive all rebalance offsets? (c) *Attribution*: which
+years produced the edge, and is the mechanism coherent? The veto passed all
+three — and its edge being largest in 2020-2022 matched the story that it
+avoids blowups.
+
+### On operations
+
+**13. Artifacts silently rot.** `models/` accumulated 139 files across three
+horizons; `today.py` picked "the newest filename" and was correct only by luck.
+`oos_predictions.parquet` got overwritten by a side experiment, so the
+backtest was silently scoring the wrong run. Fixes: an explicit
+`models/deployed.json` pin, archived per-round artifacts (`reports/r8_*.json`),
+and a startup banner on `backtest.py` saying which strategy it evaluates.
+
+**14. Detach long jobs from the assistant.** Multi-hour pipelines ran as
+`setsid nohup` scripts that survive session limits and teardown; the assistant
+only polls. One bug worth remembering: a wait-loop that counted *waiting*
+iterations against its retry budget gave up on a healthy 6-hour backfill after
+36 minutes. Budget relaunches, not patience.
+
 ## Results log
 
 **Round 11 — 2026-07-19** · 21d-horizon veto variant (10y retrain, monthly-ish
