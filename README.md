@@ -95,16 +95,32 @@ ALPACA_SECRET_KEY=...
 
 ## Running things
 
-### ⭐ Coming back after a while? Run this:
+### ⭐ The daily command
 
 ```bash
-uv run python scripts/run_all.py --retrain
+uv run python scripts/run_all.py          # ~2 minutes
 ```
 
-That one command does everything: pulls the missing prices since last run
-(top-up), rebuilds features + labels, runs the fatal lookahead check, retrains
-the walk-forward models, backtests, and regenerates `reports/validation.html`.
-Add `--dry-run` first if you want to see the plan without executing.
+Pulls prices since the last run, rebuilds features + labels, runs the fatal
+lookahead check, and writes today's picks to `picks/picks_<date>.csv` using the
+existing model. **This is the one you run every day.** Add `--dry-run` to see
+the plan without executing.
+
+Run it any time between the close (~16:15 ET / 13:15 PT — Alpaca's free SIP
+feed won't serve the 15:25 bar until it is 15 min old) and the next open. The
+validated spec fills at the **next session's open**, so evening or pre-market
+both reproduce the backtest.
+
+### Retraining (quarterly at most — NOT daily)
+
+```bash
+uv run python scripts/run_all.py --retrain    # ~4 hours, run overnight
+```
+
+Rebuilds all walk-forward models, backtests, and regenerates
+`reports/validation.html`. Rarely needed: the model-aging study
+(`reports/model_aging.png`) found a **flat** IC-vs-age curve — a model frozen
+for two years ranks about as well as a fresh one.
 
 ### Everyday commands
 
