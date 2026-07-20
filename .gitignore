@@ -15,3 +15,6 @@ models/
 reports/
 backfill.log
 overnight_round8.log
+veto_deploy.out
+veto_robustness.out
+data/universe/sp500_history.parquet
