@@ -42,7 +42,7 @@ PANEL_PATH = os.path.join(_ROOT, "data", "processed", "panel.parquet")
 # Label horizon in trading days. Overridable via env for horizon experiments
 # (the decay curve keeps voting for 10-21d):  HORIZON_DAYS=21 uv run ...
 # dataset.py's purge gap and evaluate.py's Newey-West lag follow it.
-FORWARD_DAYS = int(os.environ.get("HORIZON_DAYS", "5"))
+FORWARD_DAYS = int(os.environ.get("HORIZON_DAYS", "10"))
 # Clip scales with sqrt(horizon) so the tail treatment stays comparable
 # (±20% at 5d → ±41% at 21d, ≈ sibling's ±50% convention at its 21d horizon).
 CLIP_PCT = round(0.20 * (FORWARD_DAYS / 5) ** 0.5, 2)

@@ -38,6 +38,17 @@ PICKS_DIR = os.path.join(_ROOT, "picks")
 
 
 def latest_model_path() -> str:
+    """The model used for live picks.
+
+    Prefers models/deployed.json — an explicit pin, because models/ accumulates
+    files from every experiment round (different horizons, different data
+    vintages) and picking "the newest filename" would silently hand the daily
+    picks to whichever experiment ran last. Repin after a retrain with:
+        cp models/xgb_wf_<latest>.json models/deployed.json
+    """
+    pinned = os.path.join(MODELS_DIR, "deployed.json")
+    if os.path.exists(pinned):
+        return pinned
     paths = sorted(glob(os.path.join(MODELS_DIR, "xgb_wf_*.json")))
     if not paths:
         raise SystemExit(

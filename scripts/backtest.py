@@ -408,6 +408,13 @@ def main() -> None:
     )
     args = ap.parse_args()
 
+    print(
+        "NOTE: this evaluates the RESEARCH strategy (rank all names by raw model\n"
+        "      score, buy the top N). That strategy FAILED its gates — decade IC\n"
+        "      0.0045, returns ~ random. For the DEPLOYED momentum-with-veto spec\n"
+        "      (+30.8% CAGR, Sharpe 1.03) run scripts/veto_overlay.py instead.\n",
+        flush=True,
+    )
     if not os.path.exists(OOS_PATH):
         raise SystemExit(f"{OOS_PATH} not found. Run scripts/train.py first.")
     oos = pd.read_parquet(OOS_PATH)
