@@ -1,18 +1,53 @@
 # sp500-intraday-ranker
 
-Short-term cross-sectional momentum ranker on the S&P 500: predict each stock's
-**forward 5-trading-day return in excess of SPY** from intraday (5-minute bar)
-features, rank the universe daily at the 15:25 ET bar, hold the top 10 with a
-weekly rebalance.
+Short-term cross-sectional ranker on the S&P 500, built from intraday (5-minute
+bar) features and evaluated walk-forward. The research question was whether
+intraday features predict short-horizon (5-10 day) excess returns well enough
+to pick stocks; the answer was no — but the model earned a job as a **veto** on
+top of a 12-1 momentum strategy, which is what this repo now runs.
 
-> **STATUS (2026-07-19, after round 8 — 10 years, 29 OOS quarters):** the
-> standalone ML ranker is **dead** (decade IC 0.0045, t=0.5; portfolio ≈
-> random at every basket width; intraday features NEGATIVE over the decade).
-> One live lead survives: **momentum-with-model-veto** — momentum picks,
-> model excludes its bottom-ranked names — beat pure momentum across all 4
-> tested configs over 7y OOS (best: +31.5% CAGR, Sharpe 0.97 vs momentum's
-> +21.3%/0.71), pending a robustness battery (config stability, offsets,
-> per-year attribution). Everything else: not deployable. See Results log.
+> **STATUS (2026-07-19, after rounds 1-11 — research phase complete).**
+> The founding hypothesis **failed**: as a standalone stock picker the ML
+> ranker is dead (decade IC 0.0045, t=0.5; portfolio ≈ random at every basket
+> width; intraday features NEGATIVE over 10y — a daily-bar model would have
+> scored slightly better). What survived is a different use of the same model:
+> it can't pick winners, but it flags which momentum names are about to break.
+> **That veto strategy is the deliverable** (spec below) and is now in paper
+> tracking. Nothing trades real money.
+
+## The strategy (what this repo actually produces)
+
+**Momentum picks, the model vetoes, volatility sizes it:**
+
+1. Rank the point-in-time S&P 500 by **12-1 momentum**; take the top **15**.
+2. Score those with the walk-forward XGBoost model; **drop any in its bottom
+   30%** that day (the veto — this is the model's whole job).
+3. Hold the **top 10 survivors** by momentum, equal weight.
+4. **Rebalance every 10 sessions**; size total exposure at
+   `min(1, 0.20 / SPY 20d realized vol)`.
+
+Out-of-sample 2019-04 → 2026-07 (29 walk-forward quarters, net of $1/order +
+3 bps), from `reports/veto_deploy.json` and `veto_robustness.json`:
+
+| Strategy | CAGR | Sharpe | MaxDD |
+|---|---|---|---|
+| **Veto + vol overlay** | **+30.8%** | **1.03** | **−30.4%** |
+| Veto, no overlay | +31.5% | 0.97 | −39.6% |
+| Pure 12-1 momentum top-10 | +21.3% | 0.71 | −42.5% |
+| SPY buy-and-hold | +13.9% | 0.77 | −34.2% |
+
+Robustness: smooth config neighborhood (12 cells, k∈{12..25} × veto∈{20..40}%
+all +17-33% CAGR); beats pure momentum on **all 5** rebalance offsets; edge
+positive in **all 8** years, largest in 2020-2022 when momentum bled;
+replicates independently at a 21-day horizon; 116 orders/yr (0.12% cost drag
+at $100k). `today.py` emits these picks daily.
+
+**The honest caveat**: ~40 variants were tested against this same 7-year
+out-of-sample window, so some selection pressure is baked in — the veto family
+is only semi-pre-registered (it *failed* on 2024-26 data before being confirmed
+on the decade). The one uncontaminated test is forward paper tracking:
+`scripts/scorecard.py` grades each `picks_*.csv` against what happens after it
+was written. Live execution stays gated on that record.
 
 Sibling project: [`ml-stock-forward-return`](../ml-stock-forward-return) — the
 21-day / daily-bar version whose architecture this repo mirrors. What changes
