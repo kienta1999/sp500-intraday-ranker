@@ -95,72 +95,80 @@ ALPACA_SECRET_KEY=...
 
 ## Running things
 
-### ⭐ The daily command
+### ⭐ The four commands that matter
 
 ```bash
-uv run python scripts/run_all.py          # ~2 minutes
+uv run python scripts/run_all.py          # 1. DAILY — writes today's picks      (~2 min)
+uv run python scripts/veto_overlay.py     # 2. the deployed strategy's numbers   (~15 min)
+uv run python scripts/scorecard.py        # 3. how the real picks actually did    (seconds)
+uv run python scripts/run_all.py --retrain  # 4. rebuild models — QUARTERLY at most (~4 h)
 ```
 
-Pulls prices since the last run, rebuilds features + labels, runs the fatal
-lookahead check, and writes today's picks to `picks/picks_<date>.csv` using the
-existing model. **This is the one you run every day.** Add `--dry-run` to see
-the plan without executing.
+**1 — `run_all.py` is the one you run every day.** Pulls prices since the last
+run, rebuilds features + labels, runs the fatal lookahead check, and writes
+`picks/picks_<date>.csv` using the pinned model. Run it any time between the
+close (~16:15 ET / 13:15 PT — Alpaca's free SIP feed won't serve the 15:25 bar
+until it is 15 min old) and the next open; the validated spec fills at the
+**next session's open**, so evening or pre-market both reproduce the backtest.
+Note the spec rebalances every 10 sessions — running daily keeps data fresh and
+feeds the scorecard, but you only place orders on rebalance days.
 
-Run it any time between the close (~16:15 ET / 13:15 PT — Alpaca's free SIP
-feed won't serve the 15:25 bar until it is 15 min old) and the next open. The
-validated spec fills at the **next session's open**, so evening or pre-market
-both reproduce the backtest.
+**2 — `veto_overlay.py` prints the deployed strategy's performance.** ⚠️ Do
+NOT use `backtest.py` for this: that script evaluates the *research* strategy
+(rank everything by raw model score, buy the top N), which failed its gates.
+It says so on startup now.
 
-### Retraining (quarterly at most — NOT daily)
+**3 — `scorecard.py` grades every `picks_*.csv`** against what actually
+happened afterward. This is the only evidence no amount of backtest searching
+can contaminate, and the gate for ever going live.
 
-```bash
-uv run python scripts/run_all.py --retrain    # ~4 hours, run overnight
-```
-
-Rebuilds all walk-forward models, backtests, and regenerates
-`reports/validation.html`. Rarely needed: the model-aging study
+**4 — `--retrain` is quarterly at most, not daily.** The model-aging study
 (`reports/model_aging.png`) found a **flat** IC-vs-age curve — a model frozen
-for two years ranks about as well as a fresh one.
-
-### Everyday commands
+for two years ranks about as well as a fresh one. After a retrain, **repin the
+deployed model**:
 
 ```bash
-uv run python scripts/run_all.py            # 👈 DAILY go-to: topup → features → labels → check → today's top-10 picks (no retrain)
-uv run python scripts/run_all.py --retrain  # ⭐ the above + train → backtest → evaluate (run weekly-ish / after code changes)
-uv run python scripts/run_all.py --dry-run  # print what would run, execute nothing
-uv run python scripts/today.py              # just re-print today's picks (uses the latest trained model)
+cp models/xgb_wf_<newest-date>.json models/deployed.json
 ```
 
-The plain (no-flag) run scores today's stocks with the **most recent trained
-model** — fast, no retraining. Picks land in `picks/picks_<date>.csv` and are
-paper-tracking only until the gates above pass.
+`models/` accumulates a file per walk-forward window per experiment round (139
+and counting, across three horizons), so `today.py` uses the explicit
+`deployed.json` pin rather than guessing. Repinning is deliberate by design.
 
 ### One-time setup (already done, kept for reference)
 
 ```bash
 uv sync                                     # install dependencies
-uv run python scripts/universe.py           # rebuild data/universe/universe.csv (from sibling's daily cache)
-uv run python scripts/data.py --backfill    # 5y of 5-min bars for ~500 tickers, ~3h; resumable — rerun if interrupted
+uv run python scripts/universe.py           # rebuild data/universe/universe.csv (point-in-time membership)
+uv run python scripts/data.py --backfill    # 10y of 5-min bars for ~720 tickers, ~6h; resumable — rerun if interrupted
 ```
 
 ### Individual steps (debugging / iterating on one stage)
 
 ```bash
+uv run python scripts/run_all.py --dry-run                # print the plan, execute nothing
+uv run python scripts/today.py                            # re-print today's picks (veto strategy)
+uv run python scripts/today.py --mode model               # legacy pure-model ranking (research only)
 uv run python scripts/data.py --topup                     # incremental price pull only (~2 min)
 uv run python scripts/data.py --backfill --tickers AAPL   # (re)pull specific tickers
 uv run python scripts/features.py                         # rebuild features for all cached tickers
 uv run python scripts/features.py --ticker AAPL           # smoke: print one ticker's features, no write
-uv run python scripts/labels.py                           # attach forward 5d SPY-excess labels
+uv run python scripts/labels.py                           # attach forward-return labels (HORIZON_DAYS, default 10)
 uv run python scripts/dataset.py                          # window summary + lookahead check
 uv run python scripts/dataset.py --n-samples 200          # more thorough lookahead check (after feature changes)
-uv run python scripts/train.py                            # full walk-forward train (grid search, slow)
-uv run python scripts/train.py --quick                    # walk-forward with fixed params, no grid (fast)
-uv run python scripts/backtest.py                         # portfolio sim + baselines from the OOS predictions
+uv run python scripts/train.py                            # full walk-forward train (grid search, ~2h on GPU)
+uv run python scripts/train.py --quick                    # fixed params, no grid (fast)
+uv run python scripts/backtest.py                         # RESEARCH strategy sim + baselines (not the deployed spec)
 uv run python scripts/evaluate.py                         # gates + validation.html (permutation test is slow)
-uv run python scripts/evaluate.py --n-perm 5              # faster evaluation pass
-uv run python scripts/model_aging.py                      # IC vs model staleness (after a retrain)
-uv run python scripts/today.py                            # today's top-10 from the newest model
+uv run python scripts/model_aging.py                      # IC vs model staleness
+uv run python scripts/momentum_blend.py --rebalance-days 10   # veto/blend family comparison
+uv run python scripts/veto_robustness.py --rebalance-days 10  # config surface, offsets, per-year attribution
+uv run python scripts/topn_sweep.py --rebalance-days 10       # basket-width sweep
 ```
+
+The horizon is set by the `HORIZON_DAYS` env var (default **10**, the deployed
+spec). Experiments at other horizons write models and predictions that will
+overwrite the current ones — archive first, and repin afterwards.
 
 Results land in `reports/validation.html` (gate table, IC time series, decay
 curve, equity curves for both fill modes, turnover, cost sensitivity) —
