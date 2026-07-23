@@ -1,4 +1,4 @@
-# sp500-intraday-ranker
+# ranker-5d-sp500
 
 Short-term cross-sectional ranker on the S&P 500, built from intraday (5-minute
 bar) features and evaluated walk-forward. The research question was whether
@@ -49,7 +49,7 @@ on the decade). The one uncontaminated test is forward paper tracking:
 `scripts/scorecard.py` grades each `picks_*.csv` against what happens after it
 was written. Live execution stays gated on that record.
 
-Sibling project: [`ml-stock-forward-return`](../ml-stock-forward-return) — the
+Sibling project: [`ranker-21d-sp500`](../ranker-21d-sp500) — the
 21-day / daily-bar version whose architecture this repo mirrors. What changes
 here: data is 5-minute bars from **Alpaca Market Data** (SIP consolidated tape),
 features are intraday (VWAP distance, time-of-day-normalized volume, bar-level

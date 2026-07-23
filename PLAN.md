@@ -1,5 +1,9 @@
 # sp500-intraday-ranker — Implementation Plan
 
+> **Historical document.** Written before this repo existed; names are as of
+> authoring time. `sp500-intraday-ranker` is now `ranker-5d-sp500`, and
+> `ml-stock-forward-return` is now `ranker-21d-sp500` (renamed 2026-07-23).
+
 ## Context
 
 Mirror `/home/talekien1710/personal_project/ml-stock-forward-return` (XGBoost S&P 500 cross-sectional ranker, 21-day horizon, daily yfinance bars) into a **short-term momentum** version in the new, empty repo `/home/talekien1710/personal_project/sp500-intraday-ranker` (git remote already wired to github.com/kienta1999/sp500-intraday-ranker). The label becomes **forward 5-trading-day return in excess of SPY**; features are intraday 5-min-bar based (VWAP distance, time-of-day-normalized volume, bar-level momentum/vol); validation is **walk-forward** with hard pass/fail gates written before any results exist.

@@ -301,7 +301,7 @@ def write_html(metrics: dict, imgs: dict[str, str | None], importance: pd.Series
             importance.head(15).to_frame("importance").to_html()
 
     html = f"""<!doctype html><html><head><meta charset='utf-8'>
-<title>sp500-intraday-ranker — validation</title>
+<title>ranker-5d-sp500 — validation</title>
 <style>
  body {{ font-family: -apple-system, sans-serif; max-width: 1000px; margin: 2em auto; padding: 0 1em; }}
  table {{ border-collapse: collapse; margin: 0.5em 0; }}

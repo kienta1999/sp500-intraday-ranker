@@ -1,5 +1,5 @@
 [project]
-name = "sp500-intraday-ranker"
+name = "ranker-5d-sp500"
 version = "0.1.0"
 description = "Short-term (5-trading-day) cross-sectional momentum ranker on S&P 500 names, built from Alpaca 5-minute bars."
 requires-python = ">=3.11"

@@ -2,7 +2,7 @@
 """Point-in-time S&P 500 membership + the frozen backfill universe.
 
 Survivorship-bias control, ported from the sibling project
-(ml-stock-forward-return/scripts/universe.py): the model only ever sees a
+(ranker-21d-sp500/scripts/universe.py): the model only ever sees a
 (ticker, date) row if that stock was ACTUALLY in the index on that date.
 Ranking today's hottest names over a past window would otherwise bake
 "picked the winners in hindsight" into every backtest number.
@@ -53,7 +53,7 @@ UNIVERSE_DIR = os.path.join(_ROOT, "data", "universe")
 UNIVERSE_CSV = os.path.join(UNIVERSE_DIR, "universe.csv")
 HISTORY_FILE = os.path.join(UNIVERSE_DIR, "sp500_history.parquet")
 
-SIBLING_ROOT = os.path.join(os.path.dirname(_ROOT), "ml-stock-forward-return")
+SIBLING_ROOT = os.path.join(os.path.dirname(_ROOT), "ranker-21d-sp500")
 DOLLAR_VOL_WINDOW = 63   # trading days for the median dollar volume (backfill order)
 BACKFILL_YEARS = 10.0    # membership window for universe.csv — keep == data.DEFAULT_YEARS
                          # (10y ≈ Alpaca's full SIP archive, back to 2016)
@@ -86,7 +86,7 @@ def refresh_history(sibling_root: str = SIBLING_ROOT) -> pd.DataFrame:
     if not os.path.exists(raw):
         raise SystemExit(
             f"Neither {src} nor {raw} found — pass --sibling-root pointing at "
-            "the ml-stock-forward-return checkout."
+            "the ranker-21d-sp500 checkout."
         )
     df = pd.read_csv(raw)
     df["date"] = pd.to_datetime(df["date"])
