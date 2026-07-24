@@ -49,6 +49,41 @@ on the decade). The one uncontaminated test is forward paper tracking:
 `scripts/scorecard.py` grades each `picks_*.csv` against what happens after it
 was written. Live execution stays gated on that record.
 
+### Transfer test — the edge is real but tech-concentrated (2026-07-23)
+
+`scripts/transfer_test.py` freezes the config (`VETO_POOL=15`, `VETO_PCT=0.30`,
+`TOP_N=10`, rebalance 10) and re-runs it on cross-sections the parameters were
+never selected against, measuring the **delta vs pure 12-1 momentum in the same
+slice** — the delta is the claim, the level is contaminated. Reference slice
+reproduces `veto_deploy.json` exactly (+31.5% / 0.97 vs +21.3% / 0.71,
+delta **+10.2pp**), so the harness is sound.
+
+| Test | Result | Read |
+|---|---|---|
+| Leave-one-sector-out | 9/9 positive, +5.8 to +10.8pp | Survives removing any single sector |
+| **ex_tech** | **+2.2pp** (from +10.2pp) | **78% of the edge is tech** |
+| Random half-universes | 4/6 positive; median +1.15pp, **mean −1.13pp** | Halve the universe and the edge is noise |
+| Calendar halves | +9.2pp / +10.3pp | Stable in time |
+
+**Verdict: stable in time, fragile in cross-section.** The veto's value-add is
+overwhelmingly a technology-sector effect that holds only with the full universe
+present. That is consistent with a real but modest effect; it is also consistent
+with noise. It is *not* evidence of a broad market-wide edge.
+
+Two cautions on reading `reports/transfer_test.json`:
+
+- The script's own summary line ("15/17 slices positive") **overstates the
+  case**. The nine sector slices each drop only ~10% of names, so they are
+  near-copies of the full universe and of each other — not independent tests.
+  The six random halves are the more independent evidence, and their mean delta
+  is negative.
+- This is a generalization test, not an out-of-universe test. A true one (S&P
+  400, Nasdaq-100) is deliberately not implemented: point-in-time membership
+  exists only for the S&P 500, so any other index would carry survivorship bias.
+
+Nothing here changes the gate. Live execution still waits on forward paper
+tracking, which is the only uncontaminated evidence.
+
 Sibling project: [`ranker-21d-sp500`](../ranker-21d-sp500) — the
 21-day / daily-bar version whose architecture this repo mirrors. What changes
 here: data is 5-minute bars from **Alpaca Market Data** (SIP consolidated tape),
